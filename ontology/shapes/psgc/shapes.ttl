@@ -1,4 +1,5 @@
 @prefix : <https://sakuna.ph/> .
+@prefix geo: <http://www.opengis.net/ont/geosparql#> .
 @prefix owl: <http://www.w3.org/2002/07/owl#> .
 @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
@@ -87,6 +88,36 @@ sgsh:AlternateLabelShape a sh:PropertyShape ;
     rdfs:comment "Old PSGC names are stored as SKOS alternate labels." ;
     sh:path skos:altLabel ;
     sh:nodeKind sh:Literal .
+
+sgsh:LatitudeShape a sh:PropertyShape ;
+    rdfs:comment "Convenience latitude: at most one decimal value within the Philippine bounding box. Loose bounds (4-21.5 N) tolerate claimed island territories such as Kalayaan; a lon/lat swap always violates this shape." ;
+    sh:path :latitude ;
+    sh:datatype xsd:decimal ;
+    sh:maxCount 1 ;
+    sh:minInclusive 4.0 ;
+    sh:maxInclusive 21.5 .
+
+sgsh:LongitudeShape a sh:PropertyShape ;
+    rdfs:comment "Convenience longitude: at most one decimal value within the Philippine bounding box (111-128 E, loose to tolerate claimed island territories)." ;
+    sh:path :longitude ;
+    sh:datatype xsd:decimal ;
+    sh:maxCount 1 ;
+    sh:minInclusive 111.0 ;
+    sh:maxInclusive 128.0 .
+
+sgsh:HasGeometryShape a sh:PropertyShape ;
+    rdfs:comment "PSGC coordinates are attached through a single GeoSPARQL geometry node." ;
+    sh:path geo:hasGeometry ;
+    sh:maxCount 1 ;
+    sh:class geo:Geometry .
+
+sgsh:WKTShape a sh:PropertyShape ;
+    rdfs:comment "A geometry node serializes exactly one WKT POINT literal, EPSG:4326 (lon lat)." ;
+    sh:path geo:asWKT ;
+    sh:minCount 1 ;
+    sh:maxCount 1 ;
+    sh:datatype geo:wktLiteral ;
+    sh:pattern "^POINT \\(-?[0-9]+(\\.[0-9]+)? -?[0-9]+(\\.[0-9]+)?\\)$" .
 
 sgsh:PSGCCodeShape a sh:PropertyShape ;
     rdfs:comment "Coded administrative units must have exactly one 10-digit PSGC code." ;
@@ -250,7 +281,16 @@ sgsh:PSGCLocationShape a sh:NodeShape ;
         sgsh:Population2024Shape,
         sgsh:PopulationNoteShape,
         sgsh:StatusShape,
-        sgsh:AlternateLabelShape .
+        sgsh:AlternateLabelShape,
+        sgsh:LatitudeShape,
+        sgsh:LongitudeShape,
+        sgsh:HasGeometryShape .
+
+sgsh:GeometryNodeShape a sh:NodeShape ;
+    rdfs:comment "Validates GeoSPARQL geometry nodes referenced by PSGC locations via geo:hasGeometry." ;
+    sh:targetObjectsOf geo:hasGeometry ;
+    sh:nodeKind sh:IRI ;
+    sh:property sgsh:WKTShape .
 
 sgsh:PSGCAdministrativeLocationShape a sh:NodeShape ;
     rdfs:comment "Validates metadata common to coded PSGC administrative units." ;

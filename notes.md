@@ -387,3 +387,34 @@ city 6.64 ✓ (the previously mis-joined pair).
 
 Still pending before load: add coordinate-range SHACL shapes; give `:latitude`/`:longitude`
 an `rdfs:domain` (or adopt geo-only as canonical); GraphDB GeoSPARQL runtime check.
+
+## 8.7 Step 2.5 — structure amendments implemented and proven (2026-11-17)
+
+Ontology (`ontology/sakunagraph.ttl`):
+- Declared GeoSPARQL terms following the file's existing copy-import pattern:
+  `geo:hasGeometry` (object property, domain `geo:Feature`, range `geo:Geometry`),
+  `geo:asWKT` (datatype property, range `geo:wktLiteral`), `geo:Geometry` class.
+- `:latitude`/`:longitude` now carry `rdfs:domain` as a union
+  `( :Location :DisasterEvent )` — covering both PSGC individuals and EM-DAT's event-level
+  coordinates; safe because `:Incident`/`:MajorEvent` subclass `:DisasterEvent` and the
+  `:Impact` disjointness doesn't involve either class. Comment marks `geo:asWKT` as canonical.
+
+PSGC SHACL shapes (`ontology/shapes/psgc/shapes.ttl`):
+- `LatitudeShape` / `LongitudeShape`: `xsd:decimal`, maxCount 1, Philippine bounding box
+  lat 4.0–21.5 / lon 111.0–128.0 (deliberately loose to tolerate claimed island territories
+  such as Kalayaan; tight enough that a lon/lat swap always violates).
+- `HasGeometryShape`: ≤1 `geo:hasGeometry`, `sh:class geo:Geometry`.
+- `GeometryNodeShape` (`sh:targetObjectsOf geo:hasGeometry`): `geo:asWKT` exactly 1,
+  datatype `geo:wktLiteral`, `POINT (lon lat)` regex pattern.
+
+Main shapes (`ontology/shapes/shapes.ttl`):
+- `DisasterEventLatitudePropertyShape` / `...LongitudePropertyShape` (global bounds),
+  hooked into `sgsh:DisasterEventShape` — guards EM-DAT's existing event-level coordinates.
+
+Verification — `etl/validate/check_psgc_geo.py` (kept as a regression check):
+1. ✅ Combined graph (psgc.ttl + psgc_geo.ttl + ontology) conforms to PSGC shapes.
+2. ✅ Deliberate lat/lon swap is **detected** as a violation.
+3. ✅ Malformed WKT (`POLYGON` where `POINT` required) is **detected** as a violation.
+
+Remaining before Step 3: load `psgc.ttl` + `psgc_geo.ttl` into GraphDB (runtime GeoSPARQL
+function check), then DROMIC sampling.

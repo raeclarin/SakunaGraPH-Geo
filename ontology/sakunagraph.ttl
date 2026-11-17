@@ -148,6 +148,14 @@ baw:isOfDisasterType rdf:type owl:ObjectProperty ;
                      rdfs:label "is of disaster type" .
 
 
+###  http://www.opengis.net/ont/geosparql#hasGeometry
+geo:hasGeometry rdf:type owl:ObjectProperty ;
+                rdfs:domain geo:Feature ;
+                rdfs:range geo:Geometry ;
+                rdfs:label "has geometry"@en ;
+                skos:definition "Links a spatial feature to a representative geometry (GeoSPARQL 1.1)." .
+
+
 ###  https://sakuna.ph/agriDamageAmount
 :agriDamageAmount rdf:type owl:ObjectProperty ;
                   rdfs:domain :AgricultureDamage ;
@@ -609,6 +617,14 @@ baw:hasValue rdf:type owl:DatatypeProperty ;
              skos:definition "Indicates the measurement value of a climate parameter. Should be used together with property hasUnit." .
 
 
+###  http://www.opengis.net/ont/geosparql#asWKT
+geo:asWKT rdf:type owl:DatatypeProperty ;
+          rdfs:domain geo:Geometry ;
+          rdfs:range geo:wktLiteral ;
+          rdfs:label "as WKT"@en ;
+          skos:definition "Serializes a geometry in Well-Known Text (GeoSPARQL 1.1)." .
+
+
 ###  https://sakuna.ph/affectedBarangays
 :affectedBarangays rdf:type owl:DatatypeProperty ;
                    rdfs:domain :AffectedPopulation ;
@@ -1034,14 +1050,26 @@ baw:hasValue rdf:type owl:DatatypeProperty ;
 ###  https://sakuna.ph/latitude
 :latitude rdf:type owl:DatatypeProperty ;
           rdfs:subPropertyOf owl:topDataProperty ;
+          rdfs:domain [ rdf:type owl:Class ;
+                        owl:unionOf ( :Location
+                                      :DisasterEvent
+                                    )
+                      ] ;
           rdfs:range xsd:decimal ;
+          rdfs:comment "Convenience duplicate of point geometry. Canonical form is geo:hasGeometry / geo:asWKT." ;
           rdfs:label "latitude"@en .
 
 
 ###  https://sakuna.ph/longitude
 :longitude rdf:type owl:DatatypeProperty ;
            rdfs:subPropertyOf owl:topDataProperty ;
+           rdfs:domain [ rdf:type owl:Class ;
+                         owl:unionOf ( :Location
+                                       :DisasterEvent
+                                     )
+                       ] ;
            rdfs:range xsd:decimal ;
+           rdfs:comment "Convenience duplicate of point geometry. Canonical form is geo:hasGeometry / geo:asWKT." ;
            rdfs:label "longitude"@en .
 
 
@@ -1499,6 +1527,12 @@ qudt:QuantityValue rdf:type owl:Class ;
 geo:Feature rdf:type owl:Class ;
             rdfs:label "Feature"@en ;
             skos:definition "A discrete spatial phenomenon in a universe of discourse."@en .
+
+
+###  http://www.opengis.net/ont/geosparql#Geometry
+geo:Geometry rdf:type owl:Class ;
+             rdfs:label "Geometry"@en ;
+             skos:definition "A representation of the shape of a spatial feature (GeoSPARQL 1.1)."@en .
 
 
 ###  https://raw.githubusercontent.com/beAWARE-project/ontology/master/beAWARE_ontology#ClimateParameter

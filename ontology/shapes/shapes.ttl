@@ -86,6 +86,22 @@ sgsh:DisasterEventLastUpdateDatePropertyShape a sh:PropertyShape ;
         [ sh:datatype xsd:dateTime ]
     ) .
 
+sgsh:DisasterEventLatitudePropertyShape a sh:PropertyShape ;
+    rdfs:comment "Event latitude (e.g. EM-DAT source coordinates): at most one decimal value in global bounds." ;
+    sh:path :latitude ;
+    sh:datatype xsd:decimal ;
+    sh:maxCount 1 ;
+    sh:minInclusive -90.0 ;
+    sh:maxInclusive 90.0 .
+
+sgsh:DisasterEventLongitudePropertyShape a sh:PropertyShape ;
+    rdfs:comment "Event longitude (e.g. EM-DAT source coordinates): at most one decimal value in global bounds." ;
+    sh:path :longitude ;
+    sh:datatype xsd:decimal ;
+    sh:maxCount 1 ;
+    sh:minInclusive -180.0 ;
+    sh:maxInclusive 180.0 .
+
 sgsh:DisasterEventReferencePropertyShape a sh:PropertyShape ;
     rdfs:comment "reference follows the DisasterEvent data property range xsd:string." ;
     sh:path :reference ;
@@ -1161,6 +1177,8 @@ sgsh:DisasterEventShape a sh:NodeShape ;
         sgsh:DisasterEventEndDatePropertyShape,
         sgsh:DisasterEventEntryDatePropertyShape,
         sgsh:DisasterEventLastUpdateDatePropertyShape,
+        sgsh:DisasterEventLatitudePropertyShape,
+        sgsh:DisasterEventLongitudePropertyShape,
         sgsh:DisasterEventReferencePropertyShape,
         sgsh:DisasterEventRemarksPropertyShape,
         sgsh:DisasterEventHasDisasterTypePropertyShape,

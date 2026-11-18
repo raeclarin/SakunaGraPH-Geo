@@ -1,0 +1,138 @@
+November 17, 2026
+Ran Python -m pipeline.run_psgc --barangay
+
+2026-11-17 21:12:35,640 - INFO - __main__ - === PSGC pipeline start ===
+2026-11-17 21:12:35,641 - INFO - __main__ - Selected latest PSGC datafile: C:\Users\Acer\Documents\GitHub\SakunaGraPH-Geo\data\raw\psgc\PSGC-3Q-2026-Publication-Datafile.xlsx
+2026-11-17 21:12:35,642 - INFO - __main__ - Step 1/3: Transforming PSGC workbook to staged RDF
+2026-11-17 21:12:35,642 - INFO - __main__ - Loading PSGC workbook: C:\Users\Acer\Documents\GitHub\SakunaGraPH-Geo\data\raw\psgc\PSGC-3Q-2026-Publication-Datafile.xlsx
+2026-11-17 21:12:42,699 - INFO - __main__ - Loaded 43766 PSGC rows across 6 levels: ['Bgy', 'City', 'Mun', 'Prov', 'Reg', 'SubMun']
+2026-11-17 21:12:56,241 - INFO - __main__ - Built PSGC graph: 43766 individuals, 43748 isPartOf triples, 356522 total triples
+2026-11-17 21:13:06,240 - INFO - __main__ - Wrote staged PSGC RDF: C:\Users\Acer\Documents\GitHub\SakunaGraPH-Geo\data\rdf\psgc\psgc.staged.ttl
+2026-11-17 21:13:06,240 - INFO - __main__ - Step 2/3: Validating staged RDF
+2026-11-17 21:13:06,240 - INFO - __main__ - Validating staged PSGC RDF against C:\Users\Acer\Documents\GitHub\SakunaGraPH-Geo\ontology\shapes\psgc\shapes.ttl
+2026-11-17 21:13:21,739 - INFO - validate.validate - Validating C:\Users\Acer\Documents\GitHub\SakunaGraPH-Geo\data\rdf\psgc\psgc.staged.ttl with SHACL (356522 data triples, 0 context triples)
+2026-11-17 21:14:10,464 - INFO - __main__ - SHACL validation passed for C:\Users\Acer\Documents\GitHub\SakunaGraPH-Geo\data\rdf\psgc\psgc.staged.ttl (356522 data triples)
+2026-11-17 21:14:10,464 - INFO - __main__ - Step 3/3: Promoting staged RDF to final output
+2026-11-17 21:14:10,465 - INFO - __main__ - Moved staged RDF to final output
+2026-11-17 21:14:10,466 - INFO - __main__ - === PSGC pipeline complete: C:\Users\Acer\Documents\GitHub\SakunaGraPH-Geo\data\rdf\psgc\psgc.ttl ===
+
+--------------
+
+Ran python -m pipeline.run_psgc_geo
+
+2026-11-17 21:16:24,002 - INFO - __main__ - === PSGC geodata pipeline start ===
+2026-11-17 21:16:24,002 - INFO - __main__ - Step 1/4: Loading base graph C:\Users\Acer\Documents\GitHub\SakunaGraPH-Geo\data\rdf\psgc\psgc.ttl
+2026-11-17 21:16:33,798 - INFO - __main__ - Step 2/4: Computing centroids from C:\Users\Acer\Documents\GitHub\SakunaGraPH-Geo\frontend\static\data\regions.geojson
+2026-11-17 21:16:33,899 - INFO - transform.psgc_geodata - Computed 88 centroids from regions.geojson
+2026-11-17 21:16:33,978 - WARNING - __main__ - No PSGC individual for centroid 1303900000 (ncr manila first district)
+2026-11-17 21:16:33,978 - WARNING - __main__ - No PSGC individual for centroid 1307400000 (ncr second district)
+2026-11-17 21:16:33,978 - WARNING - __main__ - No PSGC individual for centroid 1307500000 (ncr third district)
+2026-11-17 21:16:33,978 - WARNING - __main__ - No PSGC individual for centroid 1307600000 (ncr fourth district)
+2026-11-17 21:16:33,978 - INFO - __main__ - Joined 84 of 88 centroid features (by code or name)
+2026-11-17 21:16:33,978 - INFO - __main__ - Step 3/4: Emitting geometry triples
+2026-11-17 21:16:33,982 - INFO - transform.psgc_geodata - Emitted geometry for 84 PSGC individuals
+2026-11-17 21:16:33,999 - INFO - __main__ - Wrote staged geodata RDF: C:\Users\Acer\Documents\GitHub\SakunaGraPH-Geo\data\rdf\psgc\psgc_geo.staged.ttl
+2026-11-17 21:16:34,000 - INFO - __main__ - Validating staged geodata RDF against C:\Users\Acer\Documents\GitHub\SakunaGraPH-Geo\ontology\shapes\psgc\shapes.ttl
+2026-11-17 21:16:34,074 - INFO - validate.validate - Validating C:\Users\Acer\Documents\GitHub\SakunaGraPH-Geo\data\rdf\psgc\psgc_geo.staged.ttl with SHACL (420 data triples, 0 context triples)
+2026-11-17 21:16:34,083 - INFO - __main__ - SHACL validation passed
+2026-11-17 21:16:34,083 - INFO - __main__ - Step 4/4: Promoting staged RDF to C:\Users\Acer\Documents\GitHub\SakunaGraPH-Geo\data\rdf\psgc\psgc_geo.ttl
+2026-11-17 21:16:34,085 - INFO - __main__ - === PSGC geodata pipeline complete ===
+
+---------------
+
+Ran python -m validate.check_psgc_geo
+
+TEST 1 combined graph conforms: True
+TEST 2 lat/lon swap detected as violation: True
+TEST 3 malformed WKT detected as violation: True
+
+---------------
+
+Ran python -m fetch.dromic --year 2026 --max-pages 1
+
+2026-11-17 21:33:01,816 — INFO — Processing page 1
+2026-11-17 21:33:01,826 — INFO — Found 20 posts on page
+2026-11-17 21:33:03,478 — INFO — Post date: 2026-11-17
+2026-11-17 21:33:03,494 — INFO — Post title: Fire Incident in Brgy. Umagos, Lagonglong, Misamis Oriental [10 Nov 2026]
+2026-11-17 21:33:03,878 — INFO — Downloading → DSWD-DROMIC-Report-1-on-the-Fire-Incident-in-Brgy.-Umagos-Lagonglong-Misamis-Oriental-as-of-17-November-2026-6PM.pdf
+2026-11-17 21:33:03,881 — INFO — Saved: DSWD-DROMIC-Report-1-on-the-Fire-Incident-in-Brgy.-Umagos-Lagonglong-Misamis-Oriental-as-of-17-November-2026-6PM.pdf
+2026-11-17 21:33:06,621 — INFO — Post date: 2026-11-17
+2026-11-17 21:33:06,631 — INFO — Post title: Fire Incident in Brgy. Concepcion, Kabasalan, Zamboanga Sibugay [05 Apr 2026][Terminated]
+2026-11-17 21:33:07,004 — INFO — Downloading → DSWD-DROMIC-Report-on-the-Fire-Incident-in-Brgy.-Concepcion-Kabasalan-Zamboanga-Sibugay-17-November-2026-6PM.pdf
+2026-11-17 21:33:07,012 — INFO — Saved: DSWD-DROMIC-Report-on-the-Fire-Incident-in-Brgy.-Concepcion-Kabasalan-Zamboanga-Sibugay-17-November-2026-6PM.pdf
+2026-11-17 21:33:09,517 — INFO — Post date: 2026-11-17
+2026-11-17 21:33:09,528 — INFO — Post title: Fire Incident in Brgy. Tibagan, City of San Juan [02 Apr 2026][Terminated]
+2026-11-17 21:33:09,868 — INFO — Downloading → DSWD-DROMIC-Report-on-the-Fire-Incident-in-Brgy.-Tibagan-City-of-San-Juan-17-November-2026-6PM.pdf
+2026-11-17 21:33:09,869 — INFO — Saved: DSWD-DROMIC-Report-on-the-Fire-Incident-in-Brgy.-Tibagan-City-of-San-Juan-17-November-2026-6PM.pdf
+2026-11-17 21:33:22,539 — INFO — Post date: 2026-11-17
+2026-11-17 21:33:22,556 — INFO — Post title: Effects of El Niño[15 Jun 2026]
+2026-11-17 21:33:23,007 — INFO — Downloading → DSWD-DROMIC-Report-42-on-the-Effects-of-El-Nino-as-of-17-November-2026-6AM.pdf
+2026-11-17 21:33:23,008 — INFO — Saved: DSWD-DROMIC-Report-42-on-the-Effects-of-El-Nino-as-of-17-November-2026-6AM.pdf
+2026-11-17 21:33:35,297 — INFO — Post date: 2026-11-17
+2026-11-17 21:33:35,306 — INFO — Post title: Fire Incident in Brgy. Labo, City of Ozamis, Misamis Occidental [05 Sept 2026]
+2026-11-17 21:33:35,632 — INFO — Downloading → DSWD-DROMIC-Report-2-on-the-Fire-Incident-in-Brgy.-Labo-City-of-Ozamis-Misamis-Occidental-as-of-17-November-2026-6AM.pdf
+2026-11-17 21:33:35,635 — INFO — Saved: DSWD-DROMIC-Report-2-on-the-Fire-Incident-in-Brgy.-Labo-City-of-Ozamis-Misamis-Occidental-as-of-17-November-2026-6AM.pdf
+2026-11-17 21:33:38,372 — INFO — Post date: 2026-11-17
+2026-11-17 21:33:38,380 — INFO — Post title: Effects of El Niño in Western Visayas [08 Aug 2026]
+2026-11-17 21:33:38,731 — INFO — Downloading → DSWD-DROMIC-Report-1-on-the-Effects-of-El-Nino-in-Western-Visayas-as-of-17-November-2026-6AM.pdf
+2026-11-17 21:33:38,733 — INFO — Saved: DSWD-DROMIC-Report-1-on-the-Effects-of-El-Nino-in-Western-Visayas-as-of-17-November-2026-6AM.pdf
+2026-11-17 21:33:41,374 — INFO — Post date: 2026-11-17
+2026-11-17 21:33:41,382 — INFO — Post title: Effects of Localized Thunderstorms in Western Visayas [01 Nov 2026][Terminated]
+2026-11-17 21:33:41,688 — INFO — Downloading → DSWD-DROMIC-Report-on-the-Effects-of-Localized-Thunderstorms-in-Western-Visayas-17-November-2026-6AM.pdf
+2026-11-17 21:33:41,689 — INFO — Saved: DSWD-DROMIC-Report-on-the-Effects-of-Localized-Thunderstorms-in-Western-Visayas-17-November-2026-6AM.pdf
+2026-11-17 21:33:44,419 — INFO — Post date: 2026-11-17
+2026-11-17 21:33:44,427 — INFO — Post title: Fire Incident in Brgy. North Poblacion, Medina, Misamis Oriental [10 Nov 2026]
+2026-11-17 21:33:44,728 — INFO — Downloading → DSWD-DROMIC-Report-1-on-the-Fire-Incident-in-Brgy.-North-Poblacion-Medina-Misamis-Oriental-as-of-17-November-2026-6AM.pdf
+2026-11-17 21:33:44,729 — INFO — Saved: DSWD-DROMIC-Report-1-on-the-Fire-Incident-in-Brgy.-North-Poblacion-Medina-Misamis-Oriental-as-of-17-November-2026-6AM.pdf
+2026-11-17 21:33:57,110 — INFO — Post date: 2026-11-16
+2026-11-17 21:33:57,117 — INFO — Post title: Dengue Outbreak in Bicol Region [10 Sep 2026]
+2026-11-17 21:33:57,490 — INFO — Downloading → DSWD-DROMIC-Report-10-on-the-Dengue-Outbreak-in-Bicol-Region-as-of-16-November-2026-6PM.pdf
+2026-11-17 21:33:57,492 — INFO — Saved: DSWD-DROMIC-Report-10-on-the-Dengue-Outbreak-in-Bicol-Region-as-of-16-November-2026-6PM.pdf
+2026-11-17 21:34:00,169 — INFO — Post date: 2026-11-16
+2026-11-17 21:34:00,180 — INFO — Post title: Fire Incident in Brgy. Manuyo Dos, City of Las Piñas [11 Nov 2026]
+2026-11-17 21:34:00,575 — INFO — Downloading → DSWD-DROMIC-Report-1-on-the-Fire-Incident-in-Brgy.-Manuyo-Dos-City-of-Las-Pinas-as-of-16-November-2026-6PM.pdf
+2026-11-17 21:34:00,578 — INFO — Saved: DSWD-DROMIC-Report-1-on-the-Fire-Incident-in-Brgy.-Manuyo-Dos-City-of-Las-Pinas-as-of-16-November-2026-6PM.pdf
+2026-11-17 21:34:04,006 — INFO — Post date: 2026-11-16
+2026-11-17 21:34:04,029 — INFO — Post title: Fire Incident in Brgy. Cagdianao, Claver, Surigao del Norte [20 Jul 2026][Terminated]
+2026-11-17 21:34:04,515 — INFO — Downloading → DSWD-DROMIC-Report-on-the-Fire-Incident-in-Brgy.-Cagdianao-Claver-Surigao-del-Norte-16-November-2026-6PM.pdf
+2026-11-17 21:34:04,517 — INFO — Saved: DSWD-DROMIC-Report-on-the-Fire-Incident-in-Brgy.-Cagdianao-Claver-Surigao-del-Norte-16-November-2026-6PM.pdf
+2026-11-17 21:34:16,709 — INFO — Post date: 2026-11-16
+2026-11-17 21:34:16,718 — INFO — Post title: Fire Incident in Brgy. San Antonio, City of Parañaque [15 Nov 2026]
+2026-11-17 21:34:17,057 — INFO — Downloading → DSWD-DROMIC-Report-2-on-the-Fire-Incident-in-Brgy.-San-Antonio-City-of-Paranaque-as-of-17-November-2026-6PM.pdf
+2026-11-17 21:34:17,058 — INFO — Saved: DSWD-DROMIC-Report-2-on-the-Fire-Incident-in-Brgy.-San-Antonio-City-of-Paranaque-as-of-17-November-2026-6PM.pdf
+2026-11-17 21:34:29,485 — INFO — Post date: 2026-11-16
+2026-11-17 21:34:29,496 — INFO — Post title: Fire Incident in Brgy. Nabago, City of Surigao, Surigao del Norte [09 Aug 2026][Terminated]
+2026-11-17 21:34:29,832 — INFO — Downloading → DSWD-DROMIC-Report-on-the-Fire-Incident-in-Brgy.-Nabago-City-of-Surigao-Surigao-del-Norte-16-November-2026-6PM.pdf
+2026-11-17 21:34:29,834 — INFO — Saved: DSWD-DROMIC-Report-on-the-Fire-Incident-in-Brgy.-Nabago-City-of-Surigao-Surigao-del-Norte-16-November-2026-6PM.pdf
+2026-11-17 21:34:32,288 — INFO — Post date: 2026-11-16
+2026-11-17 21:34:32,297 — INFO — Post title: Fire Incident in Brgy. Quezon, City of Tandag, Surigao del Sur ]13 Jul 2026] [Terminated]
+2026-11-17 21:34:32,716 — INFO — Downloading → DSWD-DROMIC-Report-on-the-Fire-Incident-in-Brgy.-Tiniwisan-City-of-Butuan-16-November-2026-6AM.pdf
+2026-11-17 21:34:32,717 — INFO — Saved: DSWD-DROMIC-Report-on-the-Fire-Incident-in-Brgy.-Tiniwisan-City-of-Butuan-16-November-2026-6AM.pdf
+2026-11-17 21:34:35,177 — INFO — Post date: 2026-11-16
+2026-11-17 21:34:35,184 — INFO — Post title: Fire Incident in Brgy. Tiniwisan, City of Butuan [15 Aug 2026] [Terminated]
+2026-11-17 21:34:35,498 — INFO — Downloading → DSWD-DROMIC-Report-on-the-Fire-Incident-in-Brgy.-Tiniwisan-City-of-Butuan-16-November-2026-6AM.pdf
+2026-11-17 21:34:35,500 — INFO — Saved: DSWD-DROMIC-Report-on-the-Fire-Incident-in-Brgy.-Tiniwisan-City-of-Butuan-16-November-2026-6AM.pdf
+2026-11-17 21:34:38,057 — INFO — Post date: 2026-11-16
+2026-11-17 21:34:38,067 — INFO — Post title: Fire Incident in Brgy. Buenavista, Alangalang, Leyte [11 Sep 2026] [Terminated]
+2026-11-17 21:34:38,437 — INFO — Downloading → DSWD-DROMIC-Terminal-Report-on-the-Fire-Incident-in-Brgy.-Buenavista-Alangalang-Leyte-16-November-2026-6AM.pdf
+2026-11-17 21:34:38,439 — INFO — Saved: DSWD-DROMIC-Terminal-Report-on-the-Fire-Incident-in-Brgy.-Buenavista-Alangalang-Leyte-16-November-2026-6AM.pdf
+2026-11-17 21:34:50,793 — INFO — Post date: 2026-11-15
+2026-11-17 21:34:50,805 — INFO — Post title: Fire Incident in Brgy. Matampay, Kolambugan, Lanao del Norte [09 Sep 2026][Terminated]
+2026-11-17 21:34:51,231 — INFO — Downloading → DSWD-DROMIC-Terminal-Report-on-the-Fire-Incident-in-Brgy.-Matampay-Kolambugan-Lanao-del-Norte-15-November-2026-6PM.pdf
+2026-11-17 21:34:51,232 — INFO — Saved: DSWD-DROMIC-Terminal-Report-on-the-Fire-Incident-in-Brgy.-Matampay-Kolambugan-Lanao-del-Norte-15-November-2026-6PM.pdf
+2026-11-17 21:34:53,655 — INFO — Post date: 2026-11-15
+2026-11-17 21:34:53,666 — INFO — Post title: Fire Incident in Brgy. E. Rodriguez, Quezon City [02 Nov 2026]
+2026-11-17 21:34:53,980 — INFO — Downloading → DSWD-DROMIC-Report-4-on-the-Fire-Incident-in-Brgy.-E.-Rodriguez-Quezon-City-as-of-15-November-2026-6PM.pdf
+2026-11-17 21:34:53,982 — INFO — Saved: DSWD-DROMIC-Report-4-on-the-Fire-Incident-in-Brgy.-E.-Rodriguez-Quezon-City-as-of-15-November-2026-6PM.pdf
+2026-11-17 21:34:56,325 — INFO — Post date: 2026-11-15
+2026-11-17 21:34:56,336 — INFO — Post title: Mayon Volcano Seismic Activities [01 Jan 2026]
+2026-11-17 21:34:57,127 — INFO — Downloading → DSWD-DROMIC-Report-111-on-the-Mayon-Volcano-Seismic-Activities-as-of-17-November-2026-6PM.pdf
+2026-11-17 21:34:57,130 — INFO — Saved: DSWD-DROMIC-Report-111-on-the-Mayon-Volcano-Seismic-Activities-as-of-17-November-2026-6PM.pdf
+2026-11-17 21:34:59,577 — INFO — Post date: 2026-11-14
+2026-11-17 21:34:59,585 — INFO — Post title: Fire Incident in Brgy. Ugac Sur, Tuguegarao City, Cagayan [12 Oct 2026] [Terminated]
+2026-11-17 21:35:00,040 — INFO — Downloading → DSWD-DROMIC-Report-on-the-Fire-Incident-in-Brgy.-Ugac-Sur-Tuguegarao-City-Cagayan-14-November-2026-6PM.pdf
+2026-11-17 21:35:00,043 — INFO — Saved: DSWD-DROMIC-Report-on-the-Fire-Incident-in-Brgy.-Ugac-Sur-Tuguegarao-City-Cagayan-14-November-2026-6PM.pdf
+2026-11-17 21:35:04,369 — INFO — Done. Manifest written to: ..\data\raw\dromic-new\2026\manifest.json
+
+---------------
+

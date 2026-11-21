@@ -136,3 +136,239 @@ Ran python -m fetch.dromic --year 2026 --max-pages 1
 
 ---------------
 
+November 21, 2026
+
+python -m parse.dromic --year 2026 --single "DSWD-DROMIC-Report-4-on-the-Fire-Incident-in-Brgy.-E.-Rodriguez-Quezon-City-as-of-15-November-2026-6PM.pdf"
+
+Using device: cuda
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+Loading weights: 100%|████████████████████████████████████████████████████████████████████████████████████████| 770/770 [00:00<00:00, 3990.17it/s]
+Tables found: 8
+
+[DEBUG] Columns: ['OFFICE.', 'STANDBY FUNDS.', 'STOCKPILE.FAMILY FOOD PACKS.QUANTITY', 'STOCKPILE.FAMILY FOOD PACKS.TOTAL COST', 'STOCKPILE.OTHER FOOD ITEMS.TOTAL COST', 'STOCKPILE.NON-FOOD RELIEF ITEMS.TOTAL COST', 'STOCKPILE.OTHER NON-FOOD ITEMS.TOTAL COST', 'TOTAL STANDBY FUNDS & STOCKPILE.']
+[DEBUG] loc_col_idx: None
+[DEBUG] Columns: ['OFFICE.', 'STANDBY FUNDS.', 'STOCKPILE.FAMILY FOOD PACKS.QUANTITY', 'STOCKPILE.FAMILY FOOD PACKS.TOTAL COST', 'STOCKPILE.OTHER FOOD ITEMS.TOTAL COST', 'STOCKPILE.NON-FOOD RELIEF ITEMS.TOTAL COST', 'STOCKPILE.OTHER NON-FOOD ITEMS.TOTAL COST', 'TOTAL STANDBY FUNDS & STOCKPILE.']
+[DEBUG] loc_col_idx: None
+[DEBUG] Columns: ['DATE', 'ACTIVITIES']
+[DEBUG] loc_col_idx: None
+  [row-split] Split 3 merged row(s)
+[DEBUG] Columns: ['DATE', 'ACTIVITIES']
+[DEBUG] loc_col_idx: None
+  [row-split] Split 1 merged row(s)
+[DEBUG] Columns: ['REGION / PROVINCE / MUNICIPALITY.REGION / PROVINCE / MUNICIPALITY', 'NUMBER OF AFFECTED.Barangays', 'NUMBER OF AFFECTED.Families', 'NUMBER OF AFFECTED.Persons']
+[DEBUG] loc_col_idx: 0
+  [caption mismatch] Inferred 'inside_ec_displaced_families_persons' from caption but no 'DISPLACED' in columns — clearing caption
+[DEBUG] Columns: ['0', '1', '2', '3', '4', '5', '6']
+[DEBUG] loc_col_idx: None
+  [row-split] Split 1 merged row(s)
+[DEBUG] Columns: ['REGION / PROVINCE / MUNICIPALITY.', 'NO. OF DAMAGED HOUSES.Total', 'NO. OF DAMAGED HOUSES.Totally', 'NO. OF DAMAGED HOUSES.Partially']
+[DEBUG] loc_col_idx: 0
+  [col-clean] Stripped absorbed data from column names
+[DEBUG] Columns: ['REGION / PROVINCE / MUNICIPALITY.REGION / PROVINCE / MUNICIPALITY', 'COST OF ASSISTANCE.DSWD', 'COST OF ASSISTANCE.LGU', 'COST OF ASSISTANCE.NGOs', 'COST OF ASSISTANCE.OTHERS', 'COST OF ASSISTANCE.GRAND TOTAL']
+[DEBUG] loc_col_idx: 0
+  [col-clean] Stripped absorbed data from column names
+Saved: relief_provided.csv (6 rows)
+Saved: source_dswd-drmb_and_dswd-nrlmb.csv (33 rows)
+Saved: number_of_affected_population.csv (4 rows)
+Saved: 1_2_3_4_5_6.csv (7 rows)
+Saved: number_of_damaged_houses.csv (4 rows)
+Saved: cost_of_assistance.csv (4 rows)
+
+python -m parse.dromic --year 2026 --single "DSWD-DROMIC-Report-111-on-the-Mayon-Volcano-Seismic-Activities-as-of-17-November-2026-6PM.pdf"
+
+Using device: cuda
+Loading weights: 100%|████████████████████████████████████████████████████████████████████████████████████████| 770/770 [00:00<00:00, 4078.19it/s]
+Tables found: 32
+
+[DEBUG] Columns: ['OFFICE.', 'STANDBY FUNDS.', 'STOCKPILE.FAMILY FOOD PACKS.QUANTITY', 'STOCKPILE.FAMILY FOOD PACKS.TOTAL COST', 'STOCKPILE.OTHER FOOD ITEMS.TOTAL COST', 'STOCKPILE.NON-FOOD RELIEF ITEMS.TOTAL COST', 'STOCKPILE.OTHER NON-FOOD ITEMS.TOTAL COST', 'TOTAL STANDBY FUNDS & STOCKPILE.']
+[DEBUG] loc_col_idx: None
+[DEBUG] Columns: ['DATE', 'ACTIVITIES']
+[DEBUG] loc_col_idx: None
+  [row-split] Split 3 merged row(s)
+[DEBUG] Columns: ['12 November 2026', '● DSWD FO V , facilitated the distribution of additional FNIs to the displaced families in Camalig and Ligao City, Albay.']
+[DEBUG] loc_col_idx: None
+  [row-split] Split 14 merged row(s)
+[DEBUG] Columns: ['0', '1']
+[DEBUG] loc_col_idx: None
+  [row-split] Split 16 merged row(s)
+[DEBUG] Columns: ['0', '1']
+[DEBUG] loc_col_idx: None
+  [row-split] Split 17 merged row(s)
+[DEBUG] Columns: ['0', '1']
+[DEBUG] loc_col_idx: None
+  [row-split] Split 15 merged row(s)
+[DEBUG] Columns: ['', 'in Malilipot, Albay. Maternity kits were also distributed to pregnant women in Buang Evacuation Center and HMR Evacuation Center.']
+[DEBUG] loc_col_idx: None
+  [row-split] Split 18 merged row(s)
+[DEBUG] Columns: ['0', '1']
+[DEBUG] loc_col_idx: None
+  [row-split] Split 13 merged row(s)
+[DEBUG] Columns: ['0', '1']
+[DEBUG] loc_col_idx: None
+  [row-split] Split 3 merged row(s)
+[DEBUG] Columns: ['DATE', 'ACTIVITIES']
+[DEBUG] loc_col_idx: None
+  [row-split] Split 11 merged row(s)
+[DEBUG] Columns: ['0', '1']
+[DEBUG] loc_col_idx: None
+  [row-split] Split 17 merged row(s)
+[DEBUG] Columns: ['DATE', 'ACTIVITIES']
+[DEBUG] loc_col_idx: None
+  [row-split] Split 13 merged row(s)
+[DEBUG] Columns: ['', 'Meanwhile , a Kamustahan session with IDPs in Baligang Elementary School in Ligao City. Moreover, a psychosocial activity for children was conducted.']
+[DEBUG] loc_col_idx: None
+  [row-split] Split 12 merged row(s)
+[DEBUG] Columns: ['0', '1']
+[DEBUG] loc_col_idx: None
+  [row-split] Split 11 merged row(s)
+[DEBUG] Columns: ['0', '1']
+[DEBUG] loc_col_idx: None
+  [row-split] Split 14 merged row(s)
+[DEBUG] Columns: ['0', '1']
+[DEBUG] loc_col_idx: None
+  [row-split] Split 11 merged row(s)
+[DEBUG] Columns: ['0', '1']
+[DEBUG] loc_col_idx: None
+  [row-split] Split 7 merged row(s)
+[DEBUG] Columns: ['DATE', 'ACTIVITIES']
+[DEBUG] loc_col_idx: None
+  [row-split] Split 6 merged row(s)
+[DEBUG] Columns: ['0', '1']
+[DEBUG] loc_col_idx: None
+  [row-split] Split 9 merged row(s)
+[DEBUG] Columns: ['0', '1']
+[DEBUG] loc_col_idx: None
+  [row-split] Split 13 merged row(s)
+[DEBUG] Columns: ['22 January 2026', '● DSWD FO V, through the C/MSWAD, successfully implemented the CFW activity at Camalig, Albay.']
+[DEBUG] loc_col_idx: None
+  [row-split] Split 9 merged row(s)
+[DEBUG] Columns: ['0', '1']
+[DEBUG] loc_col_idx: None
+  [row-split] Split 3 merged row(s)
+[DEBUG] Columns: ['REGION / PROVINCE / MUNICIPALITY.', 'NUMBER OF AFFECTED.Barangays', 'NUMBER OF AFFECTED.Families', 'NUMBER OF AFFECTED.Persons']
+[DEBUG] loc_col_idx: 0
+  [col-clean] Stripped absorbed data from column names
+[DEBUG] Columns: ['REGION / PROVINCE / MUNICIPALITY..', 'NUMBER OF EVACUATION.CENTERS (ECs).CUM', 'NUMBER OF EVACUATION.CENTERS (ECs).NOW', 'NUMBER OF DISPLACED INSIDE ECs.Families .CUM', 'NUMBER OF DISPLACED INSIDE ECs.Families .NOW', 'NUMBER OF DISPLACED INSIDE ECs.Persons.CUM', 'NUMBER OF DISPLACED INSIDE ECs.Persons.NOW']
+[DEBUG] loc_col_idx: 0
+  [col-clean] Stripped absorbed data from column names
+[DEBUG] Columns: ['REGION / PROVINCE / MUNICIPALITY.REGION / PROVINCE / MUNICIPALITY.REGION / PROVINCE / MUNICIPALITY', 'SEX & AGE DISTRIBUTION of IDPS INSIDE ECS.INFANT 0-6mos.Male .NOW', 'SEX & AGE DISTRIBUTION of IDPS INSIDE ECS.INFANT 0-6mos.Female .NOW', 'SEX & AGE DISTRIBUTION of IDPS INSIDE ECS.TODDLERS 7 months- 2 y/o.Male .NOW', 'SEX & AGE DISTRIBUTION of IDPS INSIDE ECS.TODDLERS 7 months- 2 y/o.Female .NOW', 'SEX & AGE DISTRIBUTION of IDPS INSIDE ECS.PRESCHOOLER S 3-5 y/o.Male .NOW', 'SEX & AGE DISTRIBUTION of IDPS INSIDE ECS.PRESCHOOLER S 3-5 y/o.Female .NOW', 'SEX & AGE DISTRIBUTION of IDPS INSIDE ECS.SCHOOL AGE 6-12 y/o.Male .NOW', 'SEX & AGE DISTRIBUTION of IDPS INSIDE ECS.SCHOOL AGE 6-12 y/o.Female .NOW', 'SEX & AGE DISTRIBUTION of IDPS INSIDE ECS.TEENAGE 13-17 y/o.Male .NOW', 'SEX & AGE DISTRIBUTION of IDPS INSIDE ECS.TEENAGE 13-17 y/o.Female .NOW', 'SEX & AGE DISTRIBUTION of IDPS INSIDE ECS.ADULT 18-59 y/o.Male .NOW', 'SEX & AGE DISTRIBUTION of IDPS INSIDE ECS.ADULT 18-59 y/o.Female .NOW', 'SEX & AGE DISTRIBUTION of IDPS INSIDE ECS.Elderly 60 and above.Male .NOW', 'SEX & AGE DISTRIBUTION of IDPS INSIDE ECS.Elderly 60 and above.Female.NOW']
+[DEBUG] loc_col_idx: 0
+[DEBUG] Columns: ['REGION / PROVINCE / MUNICIPALITY', 'SECTORAL DATA of IDPS INSIDE ECS.PREGNAN S', 'SECTORAL DATA of IDPS INSIDE ECS.LACTATI NG MOTHER', 'SECTORAL DATA of IDPS INSIDE ECS.CHILD-HEADE D FAMILY', 'SECTORAL DATA of IDPS INSIDE ECS.CHILD-HEADE D FAMILY', 'SECTORAL DATA of IDPS INSIDE ECS.SINGLE-HEADED FAMILY', 'SECTORAL DATA of IDPS INSIDE ECS.SINGLE-HEADED FAMILY', 'SECTORAL DATA of IDPS INSIDE ECS.SOLO PARENTS', 'SECTORAL DATA of IDPS INSIDE ECS.SOLO PARENTS', 'SECTORAL DATA of IDPS INSIDE ECS.PERSONS W/ DISABILITY', 'SECTORAL DATA of IDPS INSIDE ECS.PERSONS W/ DISABILITY', 'SECTORAL DATA of IDPS INSIDE ECS.INDIGENOUS PEOPLE (IPs)', 'SECTORAL DATA of IDPS INSIDE ECS.INDIGENOUS PEOPLE (IPs)', 'SECTORAL DATA of IDPS INSIDE ECS.4Ps BENEFICIARIES', 'SECTORAL DATA of IDPS INSIDE ECS.4Ps BENEFICIARIES']
+[DEBUG] loc_col_idx: 0
+  [sub-header]  Dropped 2 orphan sub-header row(s)
+[DEBUG] Columns: ['REGION / PROVINCE / MUNICIPALITY', 'Child-Friendly Space', 'Women-Friendly Space', 'Psychological First Aid', 'TOTAL']
+[DEBUG] loc_col_idx: 0
+[DEBUG] Columns: ['REGION / PROVINCE / MUNICIPALITY.Number of Beneficiaries', 'Mobile Command Center .CUM', 'Mobile Command Center .Deployment NOW', 'Mobile Command Center .Person Served', 'Mobile Kitchen .CUM', 'Mobile Kitchen .Deployment NOW', 'Mobile Kitchen .Person Served', 'Mobile Water Treatment .CUM', 'Mobile Water Treatment .Deployment NOW', 'Mobile Water Treatment .Person Served', 'Total.CUM', 'Total.Deployment NOW', 'Total.Person Served']
+[DEBUG] loc_col_idx: 0
+[DEBUG] Columns: ['REGION / PROVINCE / MUNICIPALITY.', 'NUMBER OF DISPLACED OUTSIDE ECs.Families .CUM', 'NUMBER OF DISPLACED OUTSIDE ECs.Families .NOW', 'NUMBER OF DISPLACED OUTSIDE ECs.Persons.CUM', 'NUMBER OF DISPLACED OUTSIDE ECs.Persons.NOW']
+[DEBUG] loc_col_idx: 0
+  [col-clean] Stripped absorbed data from column names
+[DEBUG] Columns: ['REGION / PROVINCE / MUNICIPALITY..', 'NUMBER OF DISPLACED OUTSIDE ECs.Families .CUM', 'NUMBER OF DISPLACED OUTSIDE ECs.Families .NOW', 'NUMBER OF DISPLACED OUTSIDE ECs.Persons.CUM', 'NUMBER OF DISPLACED OUTSIDE ECs.Persons.NOW']
+[DEBUG] loc_col_idx: 0
+  [col-clean] Stripped absorbed data from column names
+[DEBUG] Columns: ['REGION / PROVINCE / MUNICIPALITY.', 'NUMBER OF DISPLACED TOTAL.Families .CUM', 'NUMBER OF DISPLACED TOTAL.Families .NOW', 'NUMBER OF DISPLACED TOTAL.Persons.CUM', 'NUMBER OF DISPLACED TOTAL.Persons.NOW']
+[DEBUG] loc_col_idx: 0
+  [col-clean] Stripped absorbed data from column names
+[DEBUG] Columns: ['REGION / PROVINCE / MUNICIPALITY.REGION / PROVINCE / MUNICIPALITY', 'COST OF ASSISTANCE.DSWD', 'COST OF ASSISTANCE.LGUs', 'COST OF ASSISTANCE.NGOs', 'COST OF ASSISTANCE.OTHERS', 'COST OF ASSISTANCE.GRAND TOTAL']
+[DEBUG] loc_col_idx: 0
+  [col-clean] Stripped absorbed data from column names
+  [dedupe] Skipping summary 'activities' (17 rows) in favor of detailed 'activities' (121 rows)
+  [dedupe] Skipping summary '1' (132 rows) in favor of detailed '1' (390 rows)
+  [dedupe] Skipping summary '1' (148 rows) in favor of detailed '1' (390 rows)
+  [dedupe] Skipping summary 'activities' (59 rows) in favor of detailed 'activities' (121 rows)
+  [dedupe] Skipping summary '1' (73 rows) in favor of detailed '1' (390 rows)
+Saved: relief_provided.csv (6 rows)
+Saved: total_ec_displaced_families_persons.csv (112 rows)
+Saved: 1.csv (390 rows)
+Saved: in_malilipot_albay_maternity_kits_were_also_distributed_to.csv (113 rows)
+Saved: activities.csv (121 rows)
+Saved: activities_1.csv (129 rows)
+Saved: meanwhile_a_kamustahan_session_with_idps_in_baligang_eleme.csv (132 rows)
+Saved: 1_1.csv (523 rows)
+Saved: 1_2.csv (317 rows)
+Saved: dswd_fo_v_through_the_cmswad_successfully_implemented_t.csv (143 rows)
+Saved: number_of_affected_population.csv (16 rows)
+Saved: inside_ec_displaced_families_persons.csv (7 rows)
+Saved: inside_ec_displaced_families_persons_1.csv (6 rows)
+Saved: inside_ec_displaced_families_persons_2.csv (6 rows)
+Saved: child-friendly_space_women-friendly_space_psychological_firs.csv (7 rows)
+Saved: total_displaced_families_persons.csv (8 rows)
+Saved: outside_ec_displaced_families_persons.csv (8 rows)
+Saved: total_displaced_families_persons_1.csv (8 rows)
+Saved: cost_of_assistance.csv (16 rows)
+
+----------------
+
+python -m parse.dromic --year 2026 --single "DSWD-DROMIC-Report-1-on-the-Effects-of-El-Nino-in-Western-Visayas-as-of-17-November-2026-6AM.pdf"
+
+Using device: cuda
+Loading weights: 100%|████████████████████████████████████████████████████████████████████████████████████████| 770/770 [00:00<00:00, 4501.56it/s]
+Tables found: 5
+
+[DEBUG] Columns: ['OFFICE.', 'STANDBY FUNDS.', 'STOCKPILE.FAMILY FOOD PACKS.QUANTITY', 'STOCKPILE.FAMILY FOOD PACKS.TOTAL COST', 'STOCKPILE.OTHER FOOD ITEMS.TOTAL COST', 'STOCKPILE.NON-FOOD RELIEF ITEMS.TOTAL COST', 'STOCKPILE.OTHER NON-FOOD ITEMS.TOTAL COST', 'TOTAL STANDBY FUNDS & STOCKPILE.']
+[DEBUG] loc_col_idx: None
+[DEBUG] Columns: ['DATE', 'ACTIVITIES']
+[DEBUG] loc_col_idx: None
+  [row-split] Split 1 merged row(s)
+[DEBUG] Columns: ['DATE', 'ACTIVITIES']
+[DEBUG] loc_col_idx: None
+  [row-split] Split 1 merged row(s)
+[DEBUG] Columns: ['REGION / PROVINCE /.MUNICIPALITY.GRAND TOTAL', 'NUMBER OF AFFECTED.Barangays .174', 'NUMBER OF AFFECTED.Families .9 , 905', 'NUMBER OF AFFECTED.Persons.47 , 514']
+[DEBUG] loc_col_idx: 0
+  [col-clean] Stripped absorbed data from column names
+[DEBUG] Columns: ['REGION / PROVINCE /.MUNICIPALITY', 'COST OF ASSISTANCE.DSWD', 'COST OF ASSISTANCE.LGUs', 'COST OF ASSISTANCE.NGOs', 'COST OF ASSISTANCE.OTHERS', 'COST OF ASSISTANCE.GRAND TOTAL']
+[DEBUG] loc_col_idx: 0
+  [col-clean] Stripped absorbed data from column names
+Saved: relief_provided.csv (6 rows)
+Saved: activities.csv (11 rows)
+Saved: number_of_affected_population.csv (7 rows)
+Saved: cost_of_assistance.csv (4 rows)
+
+----------------------
+
+python -m pipeline.run_dromic --year 2026 --validate
+
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+modules.json: 100%|██████████████████████████████████████████████████████████████████████████████████████████████| 349/349 [00:00<00:00, 1.98MB/s]
+config_sentence_transformers.json: 100%|██████████████████████████████████████████████████████████████████████████| 116/116 [00:00<00:00, 424kB/s]
+README.md: 100%|█████████████████████████████████████████████████████████████████████████████████████████████| 11.6k/11.6k [00:00<00:00, 23.0MB/s]
+sentence_bert_config.json: 100%|████████████████████████████████████████████████████████████████████████████████| 53.0/53.0 [00:00<00:00, 153kB/s]
+config.json: 100%|███████████████████████████████████████████████████████████████████████████████████████████████| 571/571 [00:00<00:00, 3.10MB/s]
+model.safetensors: downloading bytes: ████████████████████████████████████████████████████████████████████████████████████████|  414MB, 12.8MB/s  
+model.safetensors: reconstructing file: 100%|████████████████████████████████████████████████████████████████████████|  438MB /  438MB, 24.4MB/s  
+Loading weights: 100%|█████████████████████████████████████████████████████████████████████████████████████████| 199/199 [00:00<00:00, 863.68it/s]
+tokenizer_config.json: 100%|█████████████████████████████████████████████████████████████████████████████████████| 363/363 [00:00<00:00, 1.32MB/s]
+vocab.txt: 100%|███████████████████████████████████████████████████████████████████████████████████████████████| 232k/232k [00:00<00:00, 23.2MB/s]
+tokenizer.json: 100%|██████████████████████████████████████████████████████████████████████████████████████████| 466k/466k [00:00<00:00, 39.8MB/s]
+special_tokens_map.json: 100%|████████████████████████████████████████████████████████████████████████████████████| 239/239 [00:00<00:00, 902kB/s]
+config.json: 100%|████████████████████████████████████████████████████████████████████████████████████████████████| 190/190 [00:00<00:00, 824kB/s]
+2026-11-21 17:51:09,388 - INFO - __main__ - === DROMIC pipeline start: ../data/parsed/dromic\2026 ===
+2026-11-21 17:51:09,388 - INFO - __main__ - Step 1/4: Discovering DROMIC event folders
+2026-11-21 17:51:09,388 - INFO - __main__ - Selected 3 of 3 event folders starting at offset 0 (skipped 0)
+2026-11-21 17:51:09,388 - INFO - __main__ - Step 2/4: Loading SHACL validation context
+2026-11-21 17:51:25,934 - INFO - __main__ - Step 3/4: Processing DROMIC events in batches of 100
+2026-11-21 17:51:25,934 - INFO - __main__ - Processing DROMIC batch 1/1 (3 event folders)
+2026-11-21 17:51:25,935 - INFO - __main__ - Processing DROMIC event folder: ../data/parsed/dromic\2026\Effects of El Nino in Western Visayas 20261117
+2026-11-21 17:51:25,954 - INFO - __main__ - Event IRI: https://sakuna.ph/dromic/4c9c5934-6918-5b5d-b66f-4d947faec4a4
+2026-11-21 17:51:26,499 - INFO - semantic_processing.event_geo - GeoIndex: 1756 points, 43769 parent links
+2026-11-21 17:51:26,501 - INFO - __main__ - Event centroid 11.1748,122.4542 (Municipality, weighted-mean:affectedPersons, 4 locations, spread 33.0 km)
+2026-11-21 17:51:26,559 - WARNING - __main__ - Skipping assistance for ../data/parsed/dromic\2026\Effects of El Nino in Western Visayas 20261117: The system cannot find the path specified. (os error 3): dump/assistance.csv
+2026-11-21 17:51:26,560 - INFO - __main__ - Finished DROMIC event Effects of El Niño in Western Visayas; graph now has 43 triples
+2026-11-21 17:51:26,561 - INFO - __main__ - Processing DROMIC event folder: ../data/parsed/dromic\2026\Fire Incident in Brgy. E. Rodriguez Quezon City 20261115
+Batches: 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████| 1/1 [00:00<00:00, 34.49it/s]
+2026-11-21 17:51:26,693 - INFO - __main__ - Event IRI: https://sakuna.ph/dromic/7250878a-3cd4-5c4f-ae7a-8e32e49fdd70
+2026-11-21 17:51:26,766 - INFO - __main__ - Event centroid 14.6006,120.9855 (City, single-location, 1 locations, spread 0.0 km)
+2026-11-21 17:51:26,795 - WARNING - __main__ - Skipping assistance for ../data/parsed/dromic\2026\Fire Incident in Brgy. E. Rodriguez Quezon City 20261115: The system cannot find the path specified. (os error 3): dump/assistance.csv
+2026-11-21 17:51:26,810 - INFO - __main__ - Finished DROMIC event Fire Incident in Brgy. E. Rodriguez, Quezon City; graph now has 77 triples
+2026-11-21 17:51:26,810 - INFO - __main__ - Processing DROMIC event folder: ../data/parsed/dromic\2026\Mayon Volcano Seismic Activities 20261117
+Batches: 100%|█████████████████████████████████████████████████████████████████████████████████████████████████████| 1/1 [00:00<00:00, 119.92it/s]
+2026-11-21 17:51:26,946 - INFO - __main__ - Event IRI: https://sakuna.ph/dromic/e0cec441-b4b7-5672-bfba-212afa5fc65b
+2026-11-21 17:51:27,120 - INFO - __main__ - Event centroid 13.1699,123.5522 (Municipality, weighted-mean:affectedPersons, 13 locations, spread 38.1 km)
+2026-11-21 17:51:27,143 - WARNING - __main__ - Skipping assistance for ../data/parsed/dromic\2026\Mayon Volcano Seismic Activities 20261117: The system cannot find the path specified. (os error 3): dump/assistance.csv
+2026-11-21 17:51:27,159 - INFO - __main__ - Finished DROMIC event Mayon Volcano Seismic Activities; graph now has 175 triples
+2026-11-21 17:51:33,222 - INFO - validate.validate - Validating DROMIC batch 1/1 with SHACL (175 data triples, 357383 context triples)
+2026-11-21 17:51:39,350 - INFO - __main__ - SHACL validation passed for DROMIC batch 1/1 (175 data triples, 357558 validation triples)
+2026-11-21 17:51:39,351 - INFO - __main__ - Finished DROMIC batch 1/1: 3 events, 175 triples
+2026-11-21 17:51:39,353 - INFO - __main__ - Wrote event centroid report: ../logs/dromic_event_centroids.csv (3 events)
+2026-11-21 17:51:39,353 - INFO - __main__ - Step 4/4: Serializing graph to ../data/rdf/events/dromic\dromic-2026.ttl
+2026-11-21 17:51:39,363 - INFO - __main__ - === DROMIC pipeline complete: 3 events -> ../data/rdf/events/dromic\dromic-2026.ttl (skipped 0) ===

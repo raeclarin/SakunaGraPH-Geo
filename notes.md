@@ -604,3 +604,44 @@ Requirement: a ≥ 10-page paper in ACM two-column format (`acmart`, `sigconf`).
    Re-running them after the data changes keeps the paper honest.
 4. **References**: keep `refs.bib` growing as sources come up (GeoSPARQL 1.1, COD-AB, PSGC,
    SHACL, PROV-O, DROMIC, EM-DAT, prior SakunaGraPH work).
+
+## 8.12 First real DROMIC sample run (2026-11-21)
+
+Three reports parsed with Docling (`parse.dromic --single`) and mapped with
+`run_dromic --validate`: **all 3 events mapped, all got a centroid, SHACL passed** (175 triples).
+Copied the PDFs and manifest by hand instead of running `dromic-docx-to-pdf.py`, because that
+script opens Microsoft Word through COM even when there are no DOCX files.
+
+| Event | Locations (resolved) | Event point | Method | Spread | Weighting shift | Verdict |
+|---|---|---|---|---|---|---|
+| El Niño, Western Visayas (Report 1) | Dumarao, Tapaz (Capiz); Dueñas, Lambunao (Iloilo) | 11.1748, 122.4542 | weighted by affected persons | 33.0 km | 8.8 km | plausible: central Panay, pulled toward Tapaz (22,795 persons) |
+| Mayon Volcano (Report 111) | 13 Albay towns, all in the table, none unresolved | 13.1699, 123.5522 | weighted by affected persons | 38.1 km | 7.4 km | plausible: ~16 km SW of the crater, between Guinobatan (102,147) and Ligao (80,926) |
+| Fire, Brgy. E. Rodriguez, Quezon City (Report 4) | **City of Manila** (wrong) | 14.6006, 120.9855 | single location | 0 | 0 | **wrong town**: should be Quezon City |
+
+### Bug A (location matcher): every "X, Metro Manila, NCR" row resolves to the City of Manila
+The parsed row is correct (`NCR | Metro Manila | Quezon City`), and the event title resolves
+correctly to Quezon City. In `LocationMatcher.match()` (`location_matcher_v2.py` ~L443–465),
+when the top level is a region and the province slot does not match a province, the province
+slot is tried as a **city first**: "Metro Manila" fuzzy-matches "City of Manila" (threshold
+60), so the actual municipality ("Quezon City") is never looked at. Verified: Quezon City, Las
+Piñas, Parañaque, Makati and Pateros all resolve to Manila when written with "Metro Manila"; any
+of them alone, or with "NCR" only, resolves correctly. **Impact:** every NCR row in DROMIC
+tables (which use "Metro Manila" in the province column) is placed in Manila. NCR fires are
+among the most frequent DROMIC reports, so this matters a lot for the map.
+Proposed fix: when there is a more specific level, try it first (scoped to the region); only
+reinterpret the province slot as a city if that fails.
+
+### Bug B (transform): assistance tables always fail, and the events are then skipped
+`transform/dromic.py:336` writes a debug copy to the relative path `dump/assistance.csv`; the
+`dump/` folder does not exist, so `load_assistance` raises for **every** event. `run_dromic`
+then (1) drops the assistance data and (2) appends the folder to `_needs_rerun.txt`, so **the
+next `run_dromic` run skips all three events**. The rerun entry for the fire is also truncated
+to "Fire Incident in Brgy. E": `Path(folder).stem` treats the "." in "Brgy. E." as a file
+extension. Proposed fix: remove the debug write, and use `.name` instead of `.stem`. Until then,
+empty `_needs_rerun.txt` before re-running.
+
+### QA idea (thesis-worthy)
+The fire event had two independent location signals that disagreed: the title (Quezon City)
+and the table (Manila). An automatic consistency check (the title location should equal, or
+contain, the table locations) would have flagged Bug A on its own. Candidate validation rule
+and evaluation metric.

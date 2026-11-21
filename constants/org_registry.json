@@ -56,5 +56,8 @@
     "NTC": ["NTC", "National Telecommunications Commission"],
 
 
-    "Unspecified": ["unspecified", "others"]
+    "Unspecified": ["unspecified", "others"],
+    "NGA": ["NGA", "National Government Agencies", "National Government Agency"],
+    "DROMIC": ["DROMIC", "Disaster Response Operations Monitoring and Information Center"],
+    "CRED": ["CRED", "Centre for Research on the Epidemiology of Disasters", "Center for Research on the Epidemiology of Disasters"]
 }

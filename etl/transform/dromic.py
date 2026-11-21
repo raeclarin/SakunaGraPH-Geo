@@ -333,7 +333,8 @@ def load_assistance(folder_path: str) -> List[Assistance] | None:
         for c in cost_cols
     ])
 
-    df.write_csv(f"dump/assistance.csv")
+    # Removed debug write to "dump/assistance.csv": the folder does not exist, so it
+    # raised for every event and the event was skipped on the next run (notes.md §8.13, Bug B).
 
     df = to_million_php(df, ["dswd", "lgu", "others", "ngo", "nga"])
 

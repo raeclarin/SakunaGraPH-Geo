@@ -60,7 +60,7 @@ Builds `orgs.ttl` from `org_registry.json`.
 - The slug is treated as the acronym (`skos:altLabel`).
 - The first alias becomes the `skos:prefLabel` (proper full name); remaining
   aliases become additional `skos:altLabel`s.
-- CLI: `python org_registry.py [-i registry.json] [-o orgs.ttl]`.
+- CLI (from `etl/`): `python -m semantic_processing.org_registry [-i registry.json] [-o orgs.ttl]`. Running the file directly fails with `No module named 'mappings'`.
 
 ### `disaster_classifier.py`
 Sentence-embedding classifier that maps free-text incident descriptions to

@@ -645,3 +645,78 @@ The fire event had two independent location signals that disagreed: the title (Q
 and the table (Manila). An automatic consistency check (the title location should equal, or
 contain, the table locations) would have flagged Bug A on its own. Candidate validation rule
 and evaluation metric.
+
+## 8.13 Fixes for the sample-run bugs (2026-11-21)
+
+Both bugs from §8.12 are fixed. No re-parse is needed (the fixes act in the transform/matching
+stage, which `run_dromic` runs), but `_needs_rerun.txt` must be emptied once.
+
+### Bug A fixed: "X, Metro Manila, NCR" → City of Manila
+**File:** `etl/semantic_processing/location_matcher_v2.py`
+- `match()`, branch "top level is a region, but the province slot is not a province": new order
+  1. province slot as a city in the region, **exact label only** (keeps "Lahug, Cebu City, VII"
+     → Cebu City, i.e. a barangay below a city);
+  2. the municipality level, exact then fuzzy (fixes "Quezon City, Metro Manila, NCR");
+  3. province slot as a fuzzy city match (old behaviour); else the region.
+- `_fuzzy_match_municipality_in_region()`: new `exact_only` flag, and an extra exact variant
+  "X City" → "city of X" (PSGC labels most cities "City of X").
+
+**How it was verified:**
+- Probe of 34 strings, old (`HEAD`) vs new: **exactly the 16 NCR cities/municipality written
+  with "Metro Manila" changed**, all from City of Manila to the correct city. All other cases are
+  unchanged, including the barangay-below-city ones.
+- A first attempt (simply trying the municipality level first) was **rejected**: it fixed NCR but
+  broke barangay-below-city rows, because the loose fuzzy threshold (60) matched barangay names
+  to other towns: Lahug → City of Naga, Bagong Silang (Caloocan) → Pasig, Talomo (Davao City) →
+  Tagum. Worth one sentence in the paper: matcher changes need old-vs-new regression probes.
+- Built-in smoke tests (`python -m semantic_processing.location_matcher_v2`): 34/42 both before
+  and after, with identical output. The 8 failures predate this work: their expectations are
+  outdated (Region IV-A IRI format, island-group passthroughs). Left as is; candidates for
+  cleanup.
+
+### Bug B fixed: assistance tables always failed and events were then skipped
+- `etl/transform/dromic.py` (`load_assistance`, ~L336): removed the debug write to
+  `dump/assistance.csv`.
+- `etl/pipeline/run_dromic.py` (`_record_assistance_failure`): `Path(folder).name` instead of
+  `.stem`, so folder names with dots ("Brgy. E. Rodriguez …") are recorded whole.
+- Verified: all 3 sample folders now load assistance (El Niño 1 row, fire 1 row, Mayon 21 rows),
+  and the fire's assistance row resolves to Quezon City.
+
+### Expected after re-run
+Fire event point = Quezon City centroid **14.680492, 121.060467** (precision City), instead of
+Manila's 14.600622, 120.985461 (12.0 km off). El Niño and Mayon points unchanged.
+NCR evaluation note: Quezon City is the largest NCR city, so a city-precision point can be several
+km from the affected barangay. This is the case for barangay precision as future work (the
+event already stores `:hasBarangay "E. Rodriguez"`).
+
+## 8.14 Re-run after the fixes: centroids right, SHACL failed on organisations (2026-11-21)
+
+**Re-run result:** both §8.13 fixes worked. The fire point is now Quezon City (14.6805, 121.0605,
+City), skipped 0, and there are no "Skipping assistance" warnings; El Niño and Mayon are unchanged.
+But SHACL failed with 23 violations: `:contributingOrg` values (`org/DSWD`, `org/LGU`, `org/NGO`)
+"do not have class prov:Organization".
+
+**Cause (inherited, newly exposed):** organisations get their `prov:Organization` type from
+`data/rdf/orgs/orgs.ttl`, which was **never built on this machine**. The validator loads context
+files only if they exist and skipped it silently. Assistance rows never reached validation
+before, because Bug B made them fail first; fixing Bug B exposed this gap.
+
+**Related problems found:**
+1. The documented build command `python semantic_processing/org_registry.py` (AGENTS.md,
+   `etl/semantic_processing/README.md`) **fails** with `No module named 'mappings'` when the file
+   is run directly. It must be run as a module, `python -m semantic_processing.org_registry`. Docs
+   corrected.
+2. `constants/org_registry.json` had no `NGA` (national government agencies), although the DROMIC
+   assistance mapping emits `org/NGA`. The first report with an NGA column would fail SHACL. Also
+   missing: `DROMIC` (cited by every DROMIC provenance node) and `CRED` (EM-DAT provenance). All
+   three added (now 52 organisations). The untracked copy `api/constants/org_registry.json` was
+   **not** updated, so the two copies now differ.
+3. `data/rdf/prov/prov.ttl` is expected by `validate.py` and `load_graphdb.py`, but **no script in
+   the repo builds it**. No shape currently depends on it. Inherited gap; left as is.
+
+**Guard added:** `run_dromic --validate` now logs a WARNING for every missing SHACL context file
+(`pipeline/run_dromic.py`, step 2), so a missing `orgs.ttl` can no longer fail silently.
+
+**Verified before handing over:** built `orgs.ttl` into a scratch folder, mapped the 3 folders in
+memory with a scratch rerun file, and validated with the same context `run_dromic` uses:
+**SHACL passed, 359 data triples**, all three centroids as expected.

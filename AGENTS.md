@@ -31,7 +31,7 @@ python pipeline/build_alignment.py [--sources DIR] [--skip-merge] [--stats] [--i
 python -m fetch.dromic --year [YYYY]
 
 # Organization registry → RDF:
-python semantic_processing/org_registry.py [-i registry.json] [-o orgs.ttl]
+python -m semantic_processing.org_registry [-i registry.json] [-o orgs.ttl]
 
 # Load into GraphDB (manual):
 python pipeline/load_graphdb.py

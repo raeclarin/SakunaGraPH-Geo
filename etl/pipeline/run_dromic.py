@@ -31,6 +31,7 @@ from transform.dromic import (
     load_provenance,
 )
 from validate.validate import (
+    DEFAULT_CONTEXT_GRAPH_PATHS,
     ShaclValidationError,
     ShaclValidator,
     validation_focus_nodes,
@@ -55,7 +56,9 @@ def _record_assistance_failure(folder_path: str, needs_rerun_path: str, exc: Exc
 
     path = Path(needs_rerun_path)
     existing = path.read_text(encoding="utf-8").splitlines() if path.exists() else []
-    folder = Path(folder_path).stem.strip()
+    # .name, not .stem: event folders contain dots ("Brgy. E. Rodriguez ..."), and
+    # .stem cut them at the first one, so the skip list never matched (notes.md §8.13).
+    folder = Path(folder_path).name.strip()
     if folder not in existing:
         with path.open("a", encoding="utf-8") as f:
             f.write("\n" + folder)
@@ -341,6 +344,13 @@ def run(
         log.info("Step 2/4: Loading SHACL validation context")
         if not include_context_graphs:
             log.info("SHACL validation context graphs are disabled")
+        else:
+            # Missing context files are skipped by the validator; say so, because
+            # shapes that check classes (e.g. contributingOrg -> prov:Organization)
+            # then fail on otherwise valid data (notes.md §8.14).
+            for path in DEFAULT_CONTEXT_GRAPH_PATHS:
+                if not path.exists():
+                    log.warning("SHACL context graph missing, not loaded: %s", path)
         validator = ShaclValidator.from_paths(
             include_context_graphs=include_context_graphs,
         )

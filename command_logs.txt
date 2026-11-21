@@ -372,3 +372,446 @@ Batches: 100%|██████████████████████
 2026-11-21 17:51:39,353 - INFO - __main__ - Wrote event centroid report: ../logs/dromic_event_centroids.csv (3 events)
 2026-11-21 17:51:39,353 - INFO - __main__ - Step 4/4: Serializing graph to ../data/rdf/events/dromic\dromic-2026.ttl
 2026-11-21 17:51:39,363 - INFO - __main__ - === DROMIC pipeline complete: 3 events -> ../data/rdf/events/dromic\dromic-2026.ttl (skipped 0) ===
+
+
+
+-------------------
+
+python -m pipeline.run_dromic --year 2026 --validate
+
+Loading weights: 100%|██████████████████████████████████████████████████████████████████████████████████████████| 199/199 [00:00<00:00, 618.78it/s]
+2026-11-21 20:34:32,349 - INFO - __main__ - === DROMIC pipeline start: ../data/parsed/dromic\2026 ===
+2026-11-21 20:34:32,349 - INFO - __main__ - Step 1/4: Discovering DROMIC event folders
+2026-11-21 20:34:32,351 - INFO - __main__ - Selected 3 of 3 event folders starting at offset 0 (skipped 0)
+2026-11-21 20:34:32,351 - INFO - __main__ - Step 2/4: Loading SHACL validation context
+2026-11-21 20:34:49,222 - INFO - __main__ - Step 3/4: Processing DROMIC events in batches of 100
+2026-11-21 20:34:49,223 - INFO - __main__ - Processing DROMIC batch 1/1 (3 event folders)
+2026-11-21 20:34:49,223 - INFO - __main__ - Processing DROMIC event folder: ../data/parsed/dromic\2026\Effects of El Nino in Western Visayas 20261117
+2026-11-21 20:34:49,245 - INFO - __main__ - Event IRI: https://sakuna.ph/dromic/4c9c5934-6918-5b5d-b66f-4d947faec4a4
+2026-11-21 20:34:49,760 - INFO - semantic_processing.event_geo - GeoIndex: 1756 points, 43769 parent links
+2026-11-21 20:34:49,763 - INFO - __main__ - Event centroid 11.1748,122.4542 (Municipality, weighted-mean:affectedPersons, 4 locations, spread 33.0 km)
+2026-11-21 20:34:49,811 - INFO - __main__ - Finished DROMIC event Effects of El Niño in Western Visayas; graph now has 51 triples
+2026-11-21 20:34:49,811 - INFO - __main__ - Processing DROMIC event folder: ../data/parsed/dromic\2026\Fire Incident in Brgy. E. Rodriguez Quezon City 20261115
+Batches: 100%|███████████████████████████████████████████████████████████████████████████████████████████████████████| 1/1 [00:00<00:00, 32.60it/s]
+2026-11-21 20:34:49,952 - INFO - __main__ - Event IRI: https://sakuna.ph/dromic/7250878a-3cd4-5c4f-ae7a-8e32e49fdd70
+2026-11-21 20:34:50,036 - INFO - __main__ - Event centroid 14.6805,121.0605 (City, single-location, 1 locations, spread 0.0 km)
+2026-11-21 20:34:50,075 - INFO - __main__ - Finished DROMIC event Fire Incident in Brgy. E. Rodriguez, Quezon City; graph now has 93 triples
+2026-11-21 20:34:50,075 - INFO - __main__ - Processing DROMIC event folder: ../data/parsed/dromic\2026\Mayon Volcano Seismic Activities 20261117
+Batches: 100%|███████████████████████████████████████████████████████████████████████████████████████████████████████| 1/1 [00:00<00:00, 99.79it/s]
+2026-11-21 20:34:50,209 - INFO - __main__ - Event IRI: https://sakuna.ph/dromic/e0cec441-b4b7-5672-bfba-212afa5fc65b
+2026-11-21 20:34:50,378 - INFO - __main__ - Event centroid 13.1699,123.5522 (Municipality, weighted-mean:affectedPersons, 13 locations, spread 38.1 km)
+2026-11-21 20:34:50,405 - INFO - __main__ - Finished DROMIC event Mayon Volcano Seismic Activities; graph now has 359 triples
+2026-11-21 20:34:56,337 - INFO - validate.validate - Validating DROMIC batch 1/1 with SHACL (359 data triples, 357383 context triples)
+2026-11-21 20:35:03,921 - ERROR - __main__ - SHACL validation failed for DROMIC batch 1/1
+2026-11-21 20:35:03,921 - ERROR - __main__ - Batch folders: Effects of El Nino in Western Visayas 20261117, Fire Incident in Brgy. E. Rodriguez Quezon City 20261115, Mayon Volcano Seismic Activities 20261117
+2026-11-21 20:35:03,921 - ERROR - __main__ - Validation Report
+Conforms: False
+Results (23):
+Constraint Violation in ClassConstraintComponent (http://www.w3.org/ns/shacl#ClassConstraintComponent):
+        Severity: sh:Violation
+        Source Shape: sgsh:AssistanceContributingOrgPropertyShape
+        Focus Node: <https://sakuna.ph/dromic/4c9c5934-6918-5b5d-b66f-4d947faec4a4/assistance>
+        Value Node: <https://sakuna.ph/org/DSWD>
+        Result Path: :contributingOrg
+        Message: Value does not have class prov:Organization
+Constraint Violation in ClassConstraintComponent (http://www.w3.org/ns/shacl#ClassConstraintComponent):
+        Severity: sh:Violation
+        Source Shape: sgsh:AssistanceContributingOrgPropertyShape
+        Focus Node: <https://sakuna.ph/dromic/7250878a-3cd4-5c4f-ae7a-8e32e49fdd70/assistance>
+        Value Node: <https://sakuna.ph/org/DSWD>
+        Result Path: :contributingOrg
+        Message: Value does not have class prov:Organization
+Constraint Violation in ClassConstraintComponent (http://www.w3.org/ns/shacl#ClassConstraintComponent):
+        Severity: sh:Violation
+        Source Shape: sgsh:AssistanceContributingOrgPropertyShape
+        Focus Node: <https://sakuna.ph/dromic/e0cec441-b4b7-5672-bfba-212afa5fc65b/assistance/10>
+        Value Node: <https://sakuna.ph/org/DSWD>
+        Result Path: :contributingOrg
+        Message: Value does not have class prov:Organization
+Constraint Violation in ClassConstraintComponent (http://www.w3.org/ns/shacl#ClassConstraintComponent):
+        Severity: sh:Violation
+        Source Shape: sgsh:AssistanceContributingOrgPropertyShape
+        Focus Node: <https://sakuna.ph/dromic/e0cec441-b4b7-5672-bfba-212afa5fc65b/assistance/11>
+        Value Node: <https://sakuna.ph/org/DSWD>
+        Result Path: :contributingOrg
+        Message: Value does not have class prov:Organization
+Constraint Violation in ClassConstraintComponent (http://www.w3.org/ns/shacl#ClassConstraintComponent):
+        Severity: sh:Violation
+        Source Shape: sgsh:AssistanceContributingOrgPropertyShape
+        Focus Node: <https://sakuna.ph/dromic/e0cec441-b4b7-5672-bfba-212afa5fc65b/assistance/12>
+        Value Node: <https://sakuna.ph/org/DSWD>
+        Result Path: :contributingOrg
+        Message: Value does not have class prov:Organization
+Constraint Violation in ClassConstraintComponent (http://www.w3.org/ns/shacl#ClassConstraintComponent):
+        Severity: sh:Violation
+        Source Shape: sgsh:AssistanceContributingOrgPropertyShape
+        Focus Node: <https://sakuna.ph/dromic/e0cec441-b4b7-5672-bfba-212afa5fc65b/assistance/13>
+        Value Node: <https://sakuna.ph/org/DSWD>
+        Result Path: :contributingOrg
+        Message: Value does not have class prov:Organization
+Constraint Violation in ClassConstraintComponent (http://www.w3.org/ns/shacl#ClassConstraintComponent):
+        Severity: sh:Violation
+        Source Shape: sgsh:AssistanceContributingOrgPropertyShape
+        Focus Node: <https://sakuna.ph/dromic/e0cec441-b4b7-5672-bfba-212afa5fc65b/assistance/14>
+        Value Node: <https://sakuna.ph/org/LGU>
+        Result Path: :contributingOrg
+        Message: Value does not have class prov:Organization
+Constraint Violation in ClassConstraintComponent (http://www.w3.org/ns/shacl#ClassConstraintComponent):
+        Severity: sh:Violation
+        Source Shape: sgsh:AssistanceContributingOrgPropertyShape
+        Focus Node: <https://sakuna.ph/dromic/e0cec441-b4b7-5672-bfba-212afa5fc65b/assistance/15>
+        Value Node: <https://sakuna.ph/org/LGU>
+        Result Path: :contributingOrg
+        Message: Value does not have class prov:Organization
+Constraint Violation in ClassConstraintComponent (http://www.w3.org/ns/shacl#ClassConstraintComponent):
+        Severity: sh:Violation
+        Source Shape: sgsh:AssistanceContributingOrgPropertyShape
+        Focus Node: <https://sakuna.ph/dromic/e0cec441-b4b7-5672-bfba-212afa5fc65b/assistance/16>
+        Value Node: <https://sakuna.ph/org/LGU>
+        Result Path: :contributingOrg
+        Message: Value does not have class prov:Organization
+Constraint Violation in ClassConstraintComponent (http://www.w3.org/ns/shacl#ClassConstraintComponent):
+        Severity: sh:Violation
+        Source Shape: sgsh:AssistanceContributingOrgPropertyShape
+        Focus Node: <https://sakuna.ph/dromic/e0cec441-b4b7-5672-bfba-212afa5fc65b/assistance/17>
+        Value Node: <https://sakuna.ph/org/LGU>
+        Result Path: :contributingOrg
+        Message: Value does not have class prov:Organization
+Constraint Violation in ClassConstraintComponent (http://www.w3.org/ns/shacl#ClassConstraintComponent):
+        Severity: sh:Violation
+        Source Shape: sgsh:AssistanceContributingOrgPropertyShape
+        Focus Node: <https://sakuna.ph/dromic/e0cec441-b4b7-5672-bfba-212afa5fc65b/assistance/18>
+        Value Node: <https://sakuna.ph/org/LGU>
+        Result Path: :contributingOrg
+        Message: Value does not have class prov:Organization
+Constraint Violation in ClassConstraintComponent (http://www.w3.org/ns/shacl#ClassConstraintComponent):
+        Severity: sh:Violation
+        Source Shape: sgsh:AssistanceContributingOrgPropertyShape
+        Focus Node: <https://sakuna.ph/dromic/e0cec441-b4b7-5672-bfba-212afa5fc65b/assistance/19>
+        Value Node: <https://sakuna.ph/org/NGO>
+        Result Path: :contributingOrg
+        Message: Value does not have class prov:Organization
+Constraint Violation in ClassConstraintComponent (http://www.w3.org/ns/shacl#ClassConstraintComponent):
+        Severity: sh:Violation
+        Source Shape: sgsh:AssistanceContributingOrgPropertyShape
+        Focus Node: <https://sakuna.ph/dromic/e0cec441-b4b7-5672-bfba-212afa5fc65b/assistance/1>
+        Value Node: <https://sakuna.ph/org/DSWD>
+        Result Path: :contributingOrg
+        Message: Value does not have class prov:Organization
+Constraint Violation in ClassConstraintComponent (http://www.w3.org/ns/shacl#ClassConstraintComponent):
+        Severity: sh:Violation
+        Source Shape: sgsh:AssistanceContributingOrgPropertyShape
+        Focus Node: <https://sakuna.ph/dromic/e0cec441-b4b7-5672-bfba-212afa5fc65b/assistance/20>
+        Value Node: <https://sakuna.ph/org/NGO>
+        Result Path: :contributingOrg
+        Message: Value does not have class prov:Organization
+Constraint Violation in ClassConstraintComponent (http://www.w3.org/ns/shacl#ClassConstraintComponent):
+        Severity: sh:Violation
+        Source Shape: sgsh:AssistanceContributingOrgPropertyShape
+        Focus Node: <https://sakuna.ph/dromic/e0cec441-b4b7-5672-bfba-212afa5fc65b/assistance/21>
+        Value Node: <https://sakuna.ph/org/NGO>
+        Result Path: :contributingOrg
+        Message: Value does not have class prov:Organization
+Constraint Violation in ClassConstraintComponent (http://www.w3.org/ns/shacl#ClassConstraintComponent):
+        Severity: sh:Violation
+        Source Shape: sgsh:AssistanceContributingOrgPropertyShape
+        Focus Node: <https://sakuna.ph/dromic/e0cec441-b4b7-5672-bfba-212afa5fc65b/assistance/2>
+        Value Node: <https://sakuna.ph/org/DSWD>
+        Result Path: :contributingOrg
+        Message: Value does not have class prov:Organization
+Constraint Violation in ClassConstraintComponent (http://www.w3.org/ns/shacl#ClassConstraintComponent):
+        Severity: sh:Violation
+        Source Shape: sgsh:AssistanceContributingOrgPropertyShape
+        Focus Node: <https://sakuna.ph/dromic/e0cec441-b4b7-5672-bfba-212afa5fc65b/assistance/3>
+        Value Node: <https://sakuna.ph/org/DSWD>
+        Result Path: :contributingOrg
+        Message: Value does not have class prov:Organization
+Constraint Violation in ClassConstraintComponent (http://www.w3.org/ns/shacl#ClassConstraintComponent):
+        Severity: sh:Violation
+        Source Shape: sgsh:AssistanceContributingOrgPropertyShape
+        Focus Node: <https://sakuna.ph/dromic/e0cec441-b4b7-5672-bfba-212afa5fc65b/assistance/4>
+        Value Node: <https://sakuna.ph/org/DSWD>
+        Result Path: :contributingOrg
+        Message: Value does not have class prov:Organization
+Constraint Violation in ClassConstraintComponent (http://www.w3.org/ns/shacl#ClassConstraintComponent):
+        Severity: sh:Violation
+        Source Shape: sgsh:AssistanceContributingOrgPropertyShape
+        Focus Node: <https://sakuna.ph/dromic/e0cec441-b4b7-5672-bfba-212afa5fc65b/assistance/5>
+        Value Node: <https://sakuna.ph/org/DSWD>
+        Result Path: :contributingOrg
+        Message: Value does not have class prov:Organization
+Constraint Violation in ClassConstraintComponent (http://www.w3.org/ns/shacl#ClassConstraintComponent):
+        Severity: sh:Violation
+        Source Shape: sgsh:AssistanceContributingOrgPropertyShape
+        Focus Node: <https://sakuna.ph/dromic/e0cec441-b4b7-5672-bfba-212afa5fc65b/assistance/6>
+        Value Node: <https://sakuna.ph/org/DSWD>
+        Result Path: :contributingOrg
+        Message: Value does not have class prov:Organization
+Constraint Violation in ClassConstraintComponent (http://www.w3.org/ns/shacl#ClassConstraintComponent):
+        Severity: sh:Violation
+        Source Shape: sgsh:AssistanceContributingOrgPropertyShape
+        Focus Node: <https://sakuna.ph/dromic/e0cec441-b4b7-5672-bfba-212afa5fc65b/assistance/7>
+        Value Node: <https://sakuna.ph/org/DSWD>
+        Result Path: :contributingOrg
+        Message: Value does not have class prov:Organization
+Constraint Violation in ClassConstraintComponent (http://www.w3.org/ns/shacl#ClassConstraintComponent):
+        Severity: sh:Violation
+        Source Shape: sgsh:AssistanceContributingOrgPropertyShape
+        Focus Node: <https://sakuna.ph/dromic/e0cec441-b4b7-5672-bfba-212afa5fc65b/assistance/8>
+        Value Node: <https://sakuna.ph/org/DSWD>
+        Result Path: :contributingOrg
+        Message: Value does not have class prov:Organization
+Constraint Violation in ClassConstraintComponent (http://www.w3.org/ns/shacl#ClassConstraintComponent):
+        Severity: sh:Violation
+        Source Shape: sgsh:AssistanceContributingOrgPropertyShape
+        Focus Node: <https://sakuna.ph/dromic/e0cec441-b4b7-5672-bfba-212afa5fc65b/assistance/9>
+        Value Node: <https://sakuna.ph/org/DSWD>
+        Result Path: :contributingOrg
+        Message: Value does not have class prov:Organization
+
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "C:\Users\Acer\Documents\GitHub\SakunaGraPH-Geo\etl\pipeline\run_dromic.py", line 449, in <module>
+    run(
+    ~~~^
+        sub_data_dir=os.path.join(DATA_DIR, str(args.year)),
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<7 lines>...
+        include_context_graphs=not args.no_context,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Acer\Documents\GitHub\SakunaGraPH-Geo\etl\pipeline\run_dromic.py", line 358, in run
+    processed = process_event_batches(
+        selected_folders,
+    ...<6 lines>...
+        centroid_rows=centroid_rows,
+    )
+  File "C:\Users\Acer\Documents\GitHub\SakunaGraPH-Geo\etl\pipeline\run_dromic.py", line 263, in process_event_batches
+    _validate_batch_graph(
+    ~~~~~~~~~~~~~~~~~~~~~^
+        batch_graph,
+        ^^^^^^^^^^^^
+    ...<2 lines>...
+        folders=batch_folders,
+        ^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Acer\Documents\GitHub\SakunaGraPH-Geo\etl\pipeline\run_dromic.py", line 211, in _validate_batch_graph
+    result = validator.validate_graph(
+        g,
+        label=label,
+        focus_nodes=validation_focus_nodes(g),
+    )
+  File "C:\Users\Acer\Documents\GitHub\SakunaGraPH-Geo\etl\validate\validate.py", line 160, in validate_graph
+    raise ShaclValidationError(result)
+validate.validate.ShaclValidationError: SHACL validation failed for DROMIC batch 1/1.
+Validation Report
+Conforms: False
+Results (23):
+Constraint Violation in ClassConstraintComponent (http://www.w3.org/ns/shacl#ClassConstraintComponent):
+        Severity: sh:Violation
+        Source Shape: sgsh:AssistanceContributingOrgPropertyShape
+        Focus Node: <https://sakuna.ph/dromic/4c9c5934-6918-5b5d-b66f-4d947faec4a4/assistance>
+        Value Node: <https://sakuna.ph/org/DSWD>
+        Result Path: :contributingOrg
+        Message: Value does not have class prov:Organization
+Constraint Violation in ClassConstraintComponent (http://www.w3.org/ns/shacl#ClassConstraintComponent):
+        Severity: sh:Violation
+        Source Shape: sgsh:AssistanceContributingOrgPropertyShape
+        Focus Node: <https://sakuna.ph/dromic/7250878a-3cd4-5c4f-ae7a-8e32e49fdd70/assistance>
+        Value Node: <https://sakuna.ph/org/DSWD>
+        Result Path: :contributingOrg
+        Message: Value does not have class prov:Organization
+Constraint Violation in ClassConstraintComponent (http://www.w3.org/ns/shacl#ClassConstraintComponent):
+        Severity: sh:Violation
+        Source Shape: sgsh:AssistanceContributingOrgPropertyShape
+        Focus Node: <https://sakuna.ph/dromic/e0cec441-b4b7-5672-bfba-212afa5fc65b/assistance/10>
+        Value Node: <https://sakuna.ph/org/DSWD>
+        Result Path: :contributingOrg
+        Message: Value does not have class prov:Organization
+Constraint Violation in ClassConstraintComponent (http://www.w3.org/ns/shacl#ClassConstraintComponent):
+        Severity: sh:Violation
+        Source Shape: sgsh:AssistanceContributingOrgPropertyShape
+        Focus Node: <https://sakuna.ph/dromic/e0cec441-b4b7-5672-bfba-212afa5fc65b/assistance/11>
+        Value Node: <https://sakuna.ph/org/DSWD>
+        Result Path: :contributingOrg
+        Message: Value does not have class prov:Organization
+Constraint Violation in ClassConstraintComponent (http://www.w3.org/ns/shacl#ClassConstraintComponent):
+        Severity: sh:Violation
+        Source Shape: sgsh:AssistanceContributingOrgPropertyShape
+        Focus Node: <https://sakuna.ph/dromic/e0cec441-b4b7-5672-bfba-212afa5fc65b/assistance/12>
+        Value Node: <https://sakuna.ph/org/DSWD>
+        Result Path: :contributingOrg
+        Message: Value does not have class prov:Organization
+Constraint Violation in ClassConstraintComponent (http://www.w3.org/ns/shacl#ClassConstraintComponent):
+        Severity: sh:Violation
+        Source Shape: sgsh:AssistanceContributingOrgPropertyShape
+        Focus Node: <https://sakuna.ph/dromic/e0cec441-b4b7-5672-bfba-212afa5fc65b/assistance/13>
+        Value Node: <https://sakuna.ph/org/DSWD>
+        Result Path: :contributingOrg
+        Message: Value does not have class prov:Organization
+Constraint Violation in ClassConstraintComponent (http://www.w3.org/ns/shacl#ClassConstraintComponent):
+        Severity: sh:Violation
+        Source Shape: sgsh:AssistanceContributingOrgPropertyShape
+        Focus Node: <https://sakuna.ph/dromic/e0cec441-b4b7-5672-bfba-212afa5fc65b/assistance/14>
+        Value Node: <https://sakuna.ph/org/LGU>
+        Result Path: :contributingOrg
+        Message: Value does not have class prov:Organization
+Constraint Violation in ClassConstraintComponent (http://www.w3.org/ns/shacl#ClassConstraintComponent):
+        Severity: sh:Violation
+        Source Shape: sgsh:AssistanceContributingOrgPropertyShape
+        Focus Node: <https://sakuna.ph/dromic/e0cec441-b4b7-5672-bfba-212afa5fc65b/assistance/15>
+        Value Node: <https://sakuna.ph/org/LGU>
+        Result Path: :contributingOrg
+        Message: Value does not have class prov:Organization
+Constraint Violation in ClassConstraintComponent (http://www.w3.org/ns/shacl#ClassConstraintComponent):
+        Severity: sh:Violation
+        Source Shape: sgsh:AssistanceContributingOrgPropertyShape
+        Focus Node: <https://sakuna.ph/dromic/e0cec441-b4b7-5672-bfba-212afa5fc65b/assistance/16>
+        Value Node: <https://sakuna.ph/org/LGU>
+        Result Path: :contributingOrg
+        Message: Value does not have class prov:Organization
+Constraint Violation in ClassConstraintComponent (http://www.w3.org/ns/shacl#ClassConstraintComponent):
+        Severity: sh:Violation
+        Source Shape: sgsh:AssistanceContributingOrgPropertyShape
+        Focus Node: <https://sakuna.ph/dromic/e0cec441-b4b7-5672-bfba-212afa5fc65b/assistance/17>
+        Value Node: <https://sakuna.ph/org/LGU>
+        Result Path: :contributingOrg
+        Message: Value does not have class prov:Organization
+Constraint Violation in ClassConstraintComponent (http://www.w3.org/ns/shacl#ClassConstraintComponent):
+        Severity: sh:Violation
+        Source Shape: sgsh:AssistanceContributingOrgPropertyShape
+        Focus Node: <https://sakuna.ph/dromic/e0cec441-b4b7-5672-bfba-212afa5fc65b/assistance/18>
+        Value Node: <https://sakuna.ph/org/LGU>
+        Result Path: :contributingOrg
+        Message: Value does not have class prov:Organization
+Constraint Violation in ClassConstraintComponent (http://www.w3.org/ns/shacl#ClassConstraintComponent):
+        Severity: sh:Violation
+        Source Shape: sgsh:AssistanceContributingOrgPropertyShape
+        Focus Node: <https://sakuna.ph/dromic/e0cec441-b4b7-5672-bfba-212afa5fc65b/assistance/19>
+        Value Node: <https://sakuna.ph/org/NGO>
+        Result Path: :contributingOrg
+        Message: Value does not have class prov:Organization
+Constraint Violation in ClassConstraintComponent (http://www.w3.org/ns/shacl#ClassConstraintComponent):
+        Severity: sh:Violation
+        Source Shape: sgsh:AssistanceContributingOrgPropertyShape
+        Focus Node: <https://sakuna.ph/dromic/e0cec441-b4b7-5672-bfba-212afa5fc65b/assistance/1>
+        Value Node: <https://sakuna.ph/org/DSWD>
+        Result Path: :contributingOrg
+        Message: Value does not have class prov:Organization
+Constraint Violation in ClassConstraintComponent (http://www.w3.org/ns/shacl#ClassConstraintComponent):
+        Severity: sh:Violation
+        Source Shape: sgsh:AssistanceContributingOrgPropertyShape
+        Focus Node: <https://sakuna.ph/dromic/e0cec441-b4b7-5672-bfba-212afa5fc65b/assistance/20>
+        Value Node: <https://sakuna.ph/org/NGO>
+        Result Path: :contributingOrg
+        Message: Value does not have class prov:Organization
+Constraint Violation in ClassConstraintComponent (http://www.w3.org/ns/shacl#ClassConstraintComponent):
+        Severity: sh:Violation
+        Source Shape: sgsh:AssistanceContributingOrgPropertyShape
+        Focus Node: <https://sakuna.ph/dromic/e0cec441-b4b7-5672-bfba-212afa5fc65b/assistance/21>
+        Value Node: <https://sakuna.ph/org/NGO>
+        Result Path: :contributingOrg
+        Message: Value does not have class prov:Organization
+Constraint Violation in ClassConstraintComponent (http://www.w3.org/ns/shacl#ClassConstraintComponent):
+        Severity: sh:Violation
+        Source Shape: sgsh:AssistanceContributingOrgPropertyShape
+        Focus Node: <https://sakuna.ph/dromic/e0cec441-b4b7-5672-bfba-212afa5fc65b/assistance/2>
+        Value Node: <https://sakuna.ph/org/DSWD>
+        Result Path: :contributingOrg
+        Message: Value does not have class prov:Organization
+Constraint Violation in ClassConstraintComponent (http://www.w3.org/ns/shacl#ClassConstraintComponent):
+        Severity: sh:Violation
+        Source Shape: sgsh:AssistanceContributingOrgPropertyShape
+        Focus Node: <https://sakuna.ph/dromic/e0cec441-b4b7-5672-bfba-212afa5fc65b/assistance/3>
+        Value Node: <https://sakuna.ph/org/DSWD>
+        Result Path: :contributingOrg
+        Message: Value does not have class prov:Organization
+Constraint Violation in ClassConstraintComponent (http://www.w3.org/ns/shacl#ClassConstraintComponent):
+        Severity: sh:Violation
+        Source Shape: sgsh:AssistanceContributingOrgPropertyShape
+        Focus Node: <https://sakuna.ph/dromic/e0cec441-b4b7-5672-bfba-212afa5fc65b/assistance/4>
+        Value Node: <https://sakuna.ph/org/DSWD>
+        Result Path: :contributingOrg
+        Message: Value does not have class prov:Organization
+Constraint Violation in ClassConstraintComponent (http://www.w3.org/ns/shacl#ClassConstraintComponent):
+        Severity: sh:Violation
+        Source Shape: sgsh:AssistanceContributingOrgPropertyShape
+        Focus Node: <https://sakuna.ph/dromic/e0cec441-b4b7-5672-bfba-212afa5fc65b/assistance/5>
+        Value Node: <https://sakuna.ph/org/DSWD>
+        Result Path: :contributingOrg
+        Message: Value does not have class prov:Organization
+Constraint Violation in ClassConstraintComponent (http://www.w3.org/ns/shacl#ClassConstraintComponent):
+        Severity: sh:Violation
+        Source Shape: sgsh:AssistanceContributingOrgPropertyShape
+        Focus Node: <https://sakuna.ph/dromic/e0cec441-b4b7-5672-bfba-212afa5fc65b/assistance/6>
+        Value Node: <https://sakuna.ph/org/DSWD>
+        Result Path: :contributingOrg
+        Message: Value does not have class prov:Organization
+Constraint Violation in ClassConstraintComponent (http://www.w3.org/ns/shacl#ClassConstraintComponent):
+        Severity: sh:Violation
+        Source Shape: sgsh:AssistanceContributingOrgPropertyShape
+        Focus Node: <https://sakuna.ph/dromic/e0cec441-b4b7-5672-bfba-212afa5fc65b/assistance/7>
+        Value Node: <https://sakuna.ph/org/DSWD>
+        Result Path: :contributingOrg
+        Message: Value does not have class prov:Organization
+Constraint Violation in ClassConstraintComponent (http://www.w3.org/ns/shacl#ClassConstraintComponent):
+        Severity: sh:Violation
+        Source Shape: sgsh:AssistanceContributingOrgPropertyShape
+        Focus Node: <https://sakuna.ph/dromic/e0cec441-b4b7-5672-bfba-212afa5fc65b/assistance/8>
+        Value Node: <https://sakuna.ph/org/DSWD>
+        Result Path: :contributingOrg
+        Message: Value does not have class prov:Organization
+Constraint Violation in ClassConstraintComponent (http://www.w3.org/ns/shacl#ClassConstraintComponent):
+        Severity: sh:Violation
+        Source Shape: sgsh:AssistanceContributingOrgPropertyShape
+        Focus Node: <https://sakuna.ph/dromic/e0cec441-b4b7-5672-bfba-212afa5fc65b/assistance/9>
+        Value Node: <https://sakuna.ph/org/DSWD>
+        Result Path: :contributingOrg
+        Message: Value does not have class prov:Organization
+
+-----------------
+
+python -m semantic_processing.org_registry
+
+Wrote 255 triples → ..\data\rdf\orgs\orgs.ttl
+
+-----------------
+
+Rerunning python -m pipeline.run_dromic --year 2026 --validate,
+
+Loading weights: 100%|██████████████████████████████████████████████████████████████████████████████████████████| 199/199 [00:00<00:00, 874.01it/s]
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+2026-11-21 20:50:36,620 - INFO - __main__ - === DROMIC pipeline start: ../data/parsed/dromic\2026 ===
+2026-11-21 20:50:36,620 - INFO - __main__ - Step 1/4: Discovering DROMIC event folders
+2026-11-21 20:50:36,621 - INFO - __main__ - Selected 3 of 3 event folders starting at offset 0 (skipped 0)
+2026-11-21 20:50:36,621 - INFO - __main__ - Step 2/4: Loading SHACL validation context
+2026-11-21 20:50:36,621 - WARNING - __main__ - SHACL context graph missing, not loaded: C:\Users\Acer\Documents\GitHub\SakunaGraPH-Geo\data\rdf\prov\prov.ttl
+2026-11-21 20:50:53,222 - INFO - __main__ - Step 3/4: Processing DROMIC events in batches of 100
+2026-11-21 20:50:53,222 - INFO - __main__ - Processing DROMIC batch 1/1 (3 event folders)
+2026-11-21 20:50:53,222 - INFO - __main__ - Processing DROMIC event folder: ../data/parsed/dromic\2026\Effects of El Nino in Western Visayas 20261117
+2026-11-21 20:50:53,223 - INFO - __main__ - Event IRI: https://sakuna.ph/dromic/4c9c5934-6918-5b5d-b66f-4d947faec4a4
+2026-11-21 20:50:53,561 - INFO - semantic_processing.event_geo - GeoIndex: 1756 points, 43769 parent links
+2026-11-21 20:50:53,563 - INFO - __main__ - Event centroid 11.1748,122.4542 (Municipality, weighted-mean:affectedPersons, 4 locations, spread 33.0 km)
+2026-11-21 20:50:53,573 - INFO - __main__ - Finished DROMIC event Effects of El Niño in Western Visayas; graph now has 51 triples
+2026-11-21 20:50:53,573 - INFO - __main__ - Processing DROMIC event folder: ../data/parsed/dromic\2026\Fire Incident in Brgy. E. Rodriguez Quezon City 20261115
+Batches: 100%|███████████████████████████████████████████████████████████████████████████████████████████████████████| 1/1 [00:00<00:00, 35.61it/s]
+2026-11-21 20:50:53,680 - INFO - __main__ - Event IRI: https://sakuna.ph/dromic/7250878a-3cd4-5c4f-ae7a-8e32e49fdd70
+2026-11-21 20:50:53,718 - INFO - __main__ - Event centroid 14.6805,121.0605 (City, single-location, 1 locations, spread 0.0 km)
+2026-11-21 20:50:53,742 - INFO - __main__ - Finished DROMIC event Fire Incident in Brgy. E. Rodriguez, Quezon City; graph now has 93 triples
+2026-11-21 20:50:53,742 - INFO - __main__ - Processing DROMIC event folder: ../data/parsed/dromic\2026\Mayon Volcano Seismic Activities 20261117
+Batches: 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████| 1/1 [00:00<00:00, 120.52it/s]
+2026-11-21 20:50:53,869 - INFO - __main__ - Event IRI: https://sakuna.ph/dromic/e0cec441-b4b7-5672-bfba-212afa5fc65b
+2026-11-21 20:50:53,968 - INFO - __main__ - Event centroid 13.1699,123.5522 (City, weighted-mean:affectedPersons, 13 locations, spread 38.1 km)
+2026-11-21 20:50:53,977 - INFO - __main__ - Finished DROMIC event Mayon Volcano Seismic Activities; graph now has 359 triples
+2026-11-21 20:50:59,879 - INFO - validate.validate - Validating DROMIC batch 1/1 with SHACL (359 data triples, 357638 context triples)
+2026-11-21 20:51:07,410 - INFO - __main__ - SHACL validation passed for DROMIC batch 1/1 (359 data triples, 357997 validation triples)
+2026-11-21 20:51:07,413 - INFO - __main__ - Finished DROMIC batch 1/1: 3 events, 359 triples
+2026-11-21 20:51:07,420 - INFO - __main__ - Wrote event centroid report: ../logs/dromic_event_centroids.csv (3 events)
+2026-11-21 20:51:07,420 - INFO - __main__ - Step 4/4: Serializing graph to ../data/rdf/events/dromic\dromic-2026.ttl
+2026-11-21 20:51:07,440 - INFO - __main__ - === DROMIC pipeline complete: 3 events -> ../data/rdf/events/dromic\dromic-2026.ttl (skipped 0) ===
+
+-----------------------
+

@@ -248,16 +248,22 @@ class LocationMatcher:
                 result[muni_iri] = self.municipalities[muni_iri]
         return result
 
-    def _fuzzy_match_municipality_in_region(self, label: str, region_iri: str) -> Optional[str]:
+    def _fuzzy_match_municipality_in_region(
+        self, label: str, region_iri: str, exact_only: bool = False
+    ) -> Optional[str]:
         """
         Fuzzy-match a municipality/city label against all municipalities
         that belong (directly or via province) to the given region.
         Returns the matched municipality IRI or None.
+        With exact_only=True, only the exact label variants are accepted.
         """
         candidate = label.lower().split(" (")[0].strip()
         city      = candidate + " city"
         city_of   = "city of " + candidate
-
+        variants  = {candidate, city, city_of}
+        # "Caloocan City" -> "city of caloocan" (PSGC labels most cities this way)
+        if candidate.endswith(" city"):
+            variants.add("city of " + candidate[: -len(" city")].strip())
 
         candidates = self._municipalities_in_region(region_iri)
         # print(candidates)
@@ -266,8 +272,11 @@ class LocationMatcher:
 
         # Exact label check first
         for iri, lbl in candidates.items():
-            if lbl in (candidate, city, city_of):
+            if lbl in variants:
                 return iri
+
+        if exact_only:
+            return None
 
         # Fuzzy fallback
         fuzzy = self._fuzzy_match(
@@ -452,19 +461,30 @@ class LocationMatcher:
                         matched.append(muni_iri)
                         continue
 
-                # Try prov_label as a city/municipality scoped to region
-                muni_iri = self._fuzzy_match_municipality_in_region(prov_label, region_iri)
+                # Order matters (notes.md §8.13, Bug A):
+                # 1. province slot is *exactly* a city in the region
+                #    ("Lahug, Cebu City, VII" -> Cebu City; barangay below it)
+                # 2. else the municipality level, exact then fuzzy
+                #    ("Quezon City, Metro Manila, NCR" -> Quezon City)
+                # 3. else the province slot as a fuzzy city match, else region.
+                # Previously step 3 ran first, so "Metro Manila" fuzzy-matched
+                # "City of Manila" and every NCR row landed in Manila.
+                muni_iri = self._fuzzy_match_municipality_in_region(
+                    prov_label, region_iri, exact_only=True
+                )
                 if muni_iri:
                     matched.append(muni_iri)
                     continue
 
-                # Try next level scoped to region, fall back to region itself
                 if levels:
                     muni_label = levels.pop()
                     muni_iri = self._fuzzy_match_municipality_in_region(muni_label, region_iri)
-                    matched.append(muni_iri if muni_iri else region_iri)
-                else:
-                    matched.append(region_iri)
+                    if muni_iri:
+                        matched.append(muni_iri)
+                        continue
+
+                muni_iri = self._fuzzy_match_municipality_in_region(prov_label, region_iri)
+                matched.append(muni_iri if muni_iri else region_iri)
 
         return matched
     

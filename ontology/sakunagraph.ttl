@@ -917,6 +917,15 @@ geo:asWKT rdf:type owl:DatatypeProperty ;
                  rdfs:label "geographic level" .
 
 
+###  https://sakuna.ph/geoPrecision
+:geoPrecision rdf:type owl:DatatypeProperty ;
+              rdfs:subPropertyOf owl:topDataProperty ;
+              rdfs:domain geo:Geometry ;
+              rdfs:range xsd:string ;
+              rdfs:comment "Administrative level of the polygon a point geometry was computed from (Region, Province, City, Municipality, SubMunicipality, Barangay). A Manila district that inherits the City of Manila centroid has precision City, not SubMunicipality." ;
+              rdfs:label "geometry precision"@en .
+
+
 ###  https://sakuna.ph/hasBarangay
 :hasBarangay rdf:type owl:DatatypeProperty ;
              rdfs:domain [ rdf:type owl:Class ;

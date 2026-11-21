@@ -119,6 +119,13 @@ sgsh:WKTShape a sh:PropertyShape ;
     sh:datatype geo:wktLiteral ;
     sh:pattern "^POINT \\(-?[0-9]+(\\.[0-9]+)? -?[0-9]+(\\.[0-9]+)?\\)$" .
 
+sgsh:GeoPrecisionShape a sh:PropertyShape ;
+    rdfs:comment "Administrative level the point was computed from; optional, at most one, from a fixed list." ;
+    sh:path :geoPrecision ;
+    sh:maxCount 1 ;
+    sh:datatype xsd:string ;
+    sh:in ( "Region" "Province" "City" "Municipality" "SubMunicipality" "Barangay" ) .
+
 sgsh:PSGCCodeShape a sh:PropertyShape ;
     rdfs:comment "Coded administrative units must have exactly one 10-digit PSGC code." ;
     sh:path :psgcCode ;
@@ -290,7 +297,7 @@ sgsh:GeometryNodeShape a sh:NodeShape ;
     rdfs:comment "Validates GeoSPARQL geometry nodes referenced by PSGC locations via geo:hasGeometry." ;
     sh:targetObjectsOf geo:hasGeometry ;
     sh:nodeKind sh:IRI ;
-    sh:property sgsh:WKTShape .
+    sh:property sgsh:WKTShape, sgsh:GeoPrecisionShape .
 
 sgsh:PSGCAdministrativeLocationShape a sh:NodeShape ;
     rdfs:comment "Validates metadata common to coded PSGC administrative units." ;

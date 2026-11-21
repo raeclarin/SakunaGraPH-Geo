@@ -418,3 +418,51 @@ Verification — `etl/validate/check_psgc_geo.py` (kept as a regression check):
 
 Remaining before Step 3: load `psgc.ttl` + `psgc_geo.ttl` into GraphDB (runtime GeoSPARQL
 function check), then DROMIC sampling.
+
+## 8.8 Goal 3 Step 1 — municipality centroids from HDX COD-AB (2026-11-19)
+
+Decisions: boundary source **HDX COD-AB Philippines**; precision **municipality/city points +
+event centroid** (barangay precision = future work / 2nd semester).
+
+**Source:** COD-AB `v03`, boundaries `valid_on` 2025-02-13, HDX release May 2026, EPSG:4326.
+Stored in `data/raw/boundaries/cod-ab/{shp,geojson,gdb,xlsx}` (not in git; GeoJSONs are
+0.5–0.7 GB each, so the pipeline reads the shapefiles). Licence: *record from the HDX page*.
+Pcodes are `PH` + PSGC digits without trailing zeros (`PH0102801` → `0102801000`).
+
+**Run:** `cd etl && python -m pipeline.run_psgc_geo` (default `--source cod-ab`;
+`--source geojson` reproduces the old province-only output). Reports go to
+`logs/psgc_geo_coverage.csv` and `logs/psgc_geo_unjoined_source.csv`.
+
+**Result: 1,738 / 1,738 PSGC Prov/City/Mun/SubMun units have a point; SHACL passes.**
+
+| Join rule | Units | What it covers |
+|---|---|---|
+| `code` (code + name agree) | 1,562 | the normal case |
+| `recode` | 85 | Negros Island Region (`0604/0704/0706 → 1804/1806`), Sulu (`1906 → 0906`) |
+| `name` (unique within region) | 69 | HUCs that COD-AB files under their province (Angeles, Cebu, Davao, NCR cities…), renumbered Maguindanao towns, Lucena |
+| `parent` | 14 | Manila sub-municipalities (Tondo…) inherit City of Manila (precision = City) |
+| `bgy-dissolve` | 8 | new BARMM SGA towns (Kapalawan, Ligawasan…): union of their barangay polygons (2 towns at 6/7 and 11/12 barangays) |
+
+Findings worth writing up:
+1. **Silent mis-join prevented:** Maguindanao del Norte/Sur were renumbered after the COD-AB
+   vintage, so **16 COD-AB codes now belong to a different PSGC town** (COD-AB `1908822` =
+   Pagagawan, PSGC `1908822000` = South Upi). A code-only join would misplace them with no
+   error. Fix: a code join also requires name agreement (rapidfuzz ≥ 85); disagreements fall
+   through to name matching. Regression test 7 guards it.
+2. **PSA data error:** PSGC 3Q-2026 labels Lucena as `"City of Lucenaa/"` (typo); handled by
+   a documented `NAME_ALIASES` entry.
+3. **Rename:** COD-AB "San Isidro" = PSGC "Sawata" (Davao del Norte, same code, no other San
+   Isidro in the province) — accepted via `CONFIRMED_RENAMES`.
+4. **Centroid method:** largest-part centroid in EPSG:32651 (UTM 51N), `representative_point()`
+   fallback. Against COD-AB's own `center_lat/lon`: median 1.0 km, 95th pct 5.5 km. Large gaps
+   are multipart units where COD-AB centres the *whole* shape: Palawan 313 km (pulled toward
+   the Kalayaan Islands), Sarangani 76 km (the bay between its two halves), Aparri 66 km (Fuga
+   islands), Romblon 60 km. Largest-part is the right choice for a map pin; note the trade-off
+   for split provinces like Sarangani, where the pin represents one half.
+5. Each geometry node now carries `:geoPrecision` (new ontology property, SHACL `sh:in` list)
+   and `prov:wasDerivedFrom <https://sakuna.ph/dataset/cod-ab-phl-v03>` (a `prov:Entity`).
+   Gotcha: emit `:geoPrecision` as a *plain* literal — pySHACL treats `"x"^^xsd:string` as not
+   equal to the plain `"x"` in `sh:in`.
+
+Unjoined COD-AB features (14, all expected): 4 NCR districts + "City of Isabela (not a province)"
++ the SGA unit in ADM2, and the 8 superseded SGA units in ADM3 (their barangays feed the dissolve).

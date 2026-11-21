@@ -426,7 +426,7 @@ event centroid** (barangay precision = future work / 2nd semester).
 
 **Source:** COD-AB `v03`, boundaries `valid_on` 2025-02-13, HDX release May 2026, EPSG:4326.
 Stored in `data/raw/boundaries/cod-ab/{shp,geojson,gdb,xlsx}` (not in git; GeoJSONs are
-0.5–0.7 GB each, so the pipeline reads the shapefiles). Licence: *record from the HDX page*.
+0.5–0.7 GB each, so the pipeline reads the shapefiles). Licence: **CC BY-IGO 3.0** (see §8.9).
 Pcodes are `PH` + PSGC digits without trailing zeros (`PH0102801` → `0102801000`).
 
 **Run:** `cd etl && python -m pipeline.run_psgc_geo` (default `--source cod-ab`;
@@ -434,6 +434,7 @@ Pcodes are `PH` + PSGC digits without trailing zeros (`PH0102801` → `010280100
 `logs/psgc_geo_coverage.csv` and `logs/psgc_geo_unjoined_source.csv`.
 
 **Result: 1,738 / 1,738 PSGC Prov/City/Mun/SubMun units have a point; SHACL passes.**
+*(Updated 2026-11-21: regions added, now 1,756 / 1,756; see §8.9.)*
 
 | Join rule | Units | What it covers |
 |---|---|---|
@@ -466,3 +467,140 @@ Findings worth writing up:
 
 Unjoined COD-AB features (14, all expected): 4 NCR districts + "City of Isabela (not a province)"
 + the SGA unit in ADM2, and the 8 superseded SGA units in ADM3 (their barangays feed the dissolve).
+
+
+## 8.9 Licence, region points, and a latent decimal bug (2026-11-21)
+
+### Licence: COD-AB is CC BY-IGO 3.0 — what it requires
+The HDX COD-AB Philippines dataset is licensed **Creative Commons Attribution for
+Intergovernmental Organisations (CC BY-IGO 3.0)**,
+<https://creativecommons.org/licenses/by/3.0/igo/>. There is nothing further to download:
+the licence is the legal text at that URL. Obligations for us:
+1. **Attribute** in the paper, in any published dataset (`psgc_geo.ttl`), and on the map page
+   (Goal 6). Suggested credit line: *"Administrative boundaries: OCHA / HDX Common Operational
+   Dataset – Administrative Boundaries, Philippines (v03, valid 2025-02-13; sources PSA and
+   NAMRIA), CC BY-IGO 3.0. Centroids derived by the authors."*
+2. **Indicate changes**: we do not redistribute the polygons; we derive points from them. Say so
+   (the "Centroids derived by the authors" clause covers it).
+3. **No implied endorsement** by OCHA/the UN.
+
+Good practice: save a PDF or screenshot of the HDX dataset page (version, date, licence) in a
+private thesis folder as evidence of what was used and when.
+
+In the graph, the dataset node `<https://sakuna.ph/dataset/cod-ab-phl-v03>` now carries
+`dcterms:license <https://creativecommons.org/licenses/by/3.0/igo/>`, and every geometry node
+links to it via `prov:wasDerivedFrom`.
+
+Other data we depend on, for the paper's data-sources table:
+- **PSGC 3Q-2026** (PSA publication datafile): cite PSA. It's a public government statistical
+  release; no separate licence document was found.
+- **`frontend/static/data/regions.geojson`** (inherited province polygons): origin undocumented.
+  It is no longer used for coordinates (`--source geojson` is legacy), but the frontend still
+  draws the choropleth with it. Find its source before publishing the map, or switch the
+  choropleth to COD-AB ADM2 as well.
+
+### Region points: dissolved from current members, not COD-AB ADM1
+COD-AB v03's ADM1 has 17 regions. It **predates the Negros Island Region** (NIR), and still
+has Negros in Regions VI/VII and Sulu in BARMM. Using ADM1 directly put Region VII's point on
+southern Negros (9.61, 123.03), which is now NIR. Instead, `dissolve_regions()` unions the
+already-matched polygons of every province, city and municipality whose PSGC parent is the
+region (82 provinces + 34 independent cities + 9 municipalities directly under a region),
+simplified to ~100 m first. The result: Region VII → Cebu (10.31, 123.72), NIR → Negros
+(10.03, 123.00), and every unchanged region within metres of its ADM1 point (a cross-check of
+the method). **Coverage now 1,756 / 1,756** (Reg/Prov/City/Mun/SubMun); join rule
+`member-dissolve` = 18.
+
+### Latent bug: float values in `xsd:decimal` literals
+`Literal(18.669, datatype=XSD.decimal)` keeps a Python `float`, which pySHACL rejects as "not
+xsd:decimal" when it validates **in memory**. PSGC geo output passed only because the pipeline
+re-parses the staged Turtle file before validating; DROMIC batches are validated in memory, so
+they would have failed. The event mapping uses `Decimal(str(x))`. **`mappings/emdat.py:192` has
+the same pattern** (event lat/lon); it is harmless until EM-DAT batches are validated in memory.
+
+## 8.10 Goal 3 Step 2 — event centroid (2026-11-21)
+
+**Code:** `etl/semantic_processing/event_geo.py` (calculation), `mappings/dromic.py`
+`event_geometry_mapping()` (RDF), `pipeline/run_dromic.py` `_map_centroid()` (wiring + report).
+**Tests:** `python -m validate.check_event_centroid` (13 checks on synthetic Albay/Mayon events;
+13/13 pass). **Report:** each `run_dromic` run writes `logs/dromic_event_centroids.csv`.
+
+### Inputs (best source first)
+1. **Affected-population rows**: municipality-level rows of the DROMIC "number of affected"
+   and displaced/served tables (province and region subtotal rows are already dropped by
+   `transform/helpers.py`), each with `hasLocation` and counts.
+2. **Event metadata location** (e.g. "Fire Incident in Brgy. X, Town, Province"); no weights.
+3. **Housing-damage rows**; no weights.
+
+### Calculation
+1. **Resolve** each location IRI to a point from `psgc_geo.ttl`. A unit without its own point
+   (a barangay) walks up `:isPartOf` to the nearest ancestor with one; the precision is the
+   level the point actually came from.
+2. **Merge** repeated IRIs (weights summed).
+3. **Choose one weight field for the whole event**: the first of `affectedPersons`,
+   `affectedFamilies`, `displacedPersons`, `displacedFamilies` that is > 0 for *every* location.
+   Mixing fields across towns would make the weights incomparable, so if none covers all
+   locations, the mean is unweighted.
+4. **Spherical (geographic) mean**: convert each point to a 3-D unit vector
+   (x = cos φ cos λ, y = cos φ sin λ, z = sin φ), take the weighted sum, and convert back
+   (φ = atan2(z, √(x²+y²)), λ = atan2(y, x)). This is exact on the sphere and independent of
+   map projection; at Philippine scales it differs from a plain lat/lon average by well under a
+   metre.
+5. **Precision** = the coarsest level among the inputs (one province-only row → "Province").
+6. **Spread** = the largest haversine distance from the centroid to any input point (0 for one
+   town); a dispersion measure the map can draw as a radius.
+7. The **unweighted** mean is always computed too, and the report stores the distance between
+   the two (`weighting_shift_km`) for the thesis comparison.
+
+### RDF emitted per event
+```turtle
+<event> geo:hasGeometry <event/geometry> ; :latitude 13.155547 ; :longitude 123.670364 .
+<event/geometry> a geo:Geometry ;
+    geo:asWKT "POINT (123.670364 13.155547)"^^geo:wktLiteral ;
+    :geoPrecision "Municipality" ; :centroidMethod "weighted-mean:affectedPersons" ;
+    :locationCount 4 ; :spreadKm 18.669 .
+```
+New ontology properties `:centroidMethod`, `:locationCount`, `:spreadKm` (domain
+`geo:Geometry`). New SHACL `sgsh:EventGeometryNodeShape` in `ontology/shapes/shapes.ttl`: one
+WKT `POINT` inside the PH bounding box (lon 111–128, lat 4–21, so a lat/lon swap fails), the
+`:geoPrecision` list, a method pattern, `locationCount ≥ 1`, `spreadKm ≥ 0`. Note:
+`geo:hasGeometry` has domain `geo:Feature`, so a reasoner will infer that events are
+`geo:Feature`s. That is consistent with GeoSPARQL (a feature is anything with a spatial
+representation).
+
+### Synthetic results (Albay, around Mayon Volcano)
+| Case | Result |
+|---|---|
+| One town (Daraga) | point = Daraga centroid, `single-location`, spread 0 |
+| Barangay (Alobo, Daraga) | Daraga's point, precision Municipality |
+| Daraga 3,000 : Tabaco 1,000 persons | point exactly 1/4 of the way from Daraga (ratio 0.2500); 5.8 km from the unweighted midpoint |
+| Daraga/Legazpi/Guinobatan/Tabaco (4,000/2,500/3,000/1,500) | 13.1555, 123.6704; spread 18.7 km; weighting moved the point 2.5 km |
+
+### Bug fixed along the way
+`transform/dromic.py` joins several matched IRIs with `"|"` into **one** `URIRef` for the
+event's metadata location (e.g. `https://sakuna.ph/A|https://sakuna.ph/B`), an invalid IRI in
+the graph. `event_mapping` now emits one `:hasLocation` per IRI (test 12). Also removed a stray
+`from turtle import st` in `mappings/dromic.py` (it imported Python's turtle-graphics module).
+
+### Open questions for later
+- DROMIC event IRIs are `uuid5(name + startDate)`, so **every report of an event maps to the
+  same IRI**. With one report per event (the current scraper) that is fine. Goal 4 fetches
+  *all* reports, so it must process only the latest report per event, or each report needs its
+  own snapshot node. Otherwise an event would get several centroids, which SHACL `maxCount 1`
+  will catch.
+- Weighting by *affected* vs *displaced* persons answers different questions (where the impact
+  is vs where people moved). This is worth one sentence in the paper's method section.
+
+## 8.11 Writing workflow (proposal)
+
+Requirement: a ≥ 10-page paper in ACM two-column format (`acmart`, `sigconf`).
+1. **notes.md stays the lab notebook**: every step, number, command, and bug lands here first.
+2. **Draft into the repo, sync to Overleaf.** Add the ACM template to `paper/` (e.g.
+   `paper/main.tex` + `paper/sections/{intro,related,method,results,discussion}.tex` +
+   `paper/refs.bib`). After each finished step, Claude drafts the matching section from these
+   notes (method and results first, since they are freshest), and you paste/sync into Overleaf.
+   Overleaf's GitHub sync needs a paid plan; without it, copy the section files manually.
+3. **Figures from data, as scripts**: e.g. `paper/figures/*.py` generates a coverage-by-join-rule
+   table, a map of municipality centroids, and a weighted-vs-unweighted shift histogram.
+   Re-running them after the data changes keeps the paper honest.
+4. **References**: keep `refs.bib` growing as sources come up (GeoSPARQL 1.1, COD-AB, PSGC,
+   SHACL, PROV-O, DROMIC, EM-DAT, prior SakunaGraPH work).

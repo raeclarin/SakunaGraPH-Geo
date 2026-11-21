@@ -1,12 +1,14 @@
 from dataclasses import fields, dataclass
-from turtle import st
 from typing import List
-from rdflib import URIRef, Literal
+from rdflib import Literal, Namespace, URIRef
 from rdflib.namespace import RDF, XSD
 from datetime import datetime
+from decimal import Decimal
 
 from .iris import aff_pop_iri, assistance_iri, event_uri, housing_iri, pevac_iri, prov_iri
 from .graph import ORG, SKG, Graph, PROV, add_monetary
+
+GEO = Namespace("http://www.opengis.net/ont/geosparql#")
 
 
 @dataclass
@@ -177,9 +179,11 @@ def event_mapping(g: Graph, ev: Event) -> URIRef:
         if value is None: continue
 
         if f.name == "hasLocation":
-
-            # add catch for barangasys
-            g.add((uri, SKG.hasLocation, URIRef(str(value))))
+            # Metadata locations may name several places joined by "|";
+            # emit one :hasLocation per IRI instead of one invalid IRI.
+            for part in str(value).split("|"):
+                if part.strip():
+                    g.add((uri, SKG.hasLocation, URIRef(part.strip())))
         elif f.name == "hasDisasterType":
             g.add((uri, SKG.hasDisasterType, URIRef(SKG[value])))
         elif f.type == datetime:
@@ -297,3 +301,23 @@ def pevac_mapping(g: Graph, pevac: List[PEvac], event_iri: URIRef):
             # just the evacCenters left
             else:
                 g.add((uri, getattr(SKG, f.name), Literal(value)))
+
+def event_geometry_mapping(g: Graph, event_iri: URIRef, centroid) -> URIRef:
+    """Attach the event centroid (semantic_processing.event_geo.EventCentroid).
+
+    Canonical form is GeoSPARQL (geo:hasGeometry / geo:asWKT, "POINT (lon lat)",
+    EPSG:4326); :latitude/:longitude are convenience duplicates, like PSGC.
+    """
+    geometry = URIRef(f"{event_iri}/geometry")
+    g.add((event_iri, GEO.hasGeometry, geometry))
+    g.add((geometry, RDF.type, GEO.Geometry))
+    g.add((geometry, GEO.asWKT, Literal(f"POINT ({centroid.lon} {centroid.lat})", datatype=GEO.wktLiteral)))
+    g.add((geometry, SKG.geoPrecision, Literal(centroid.precision)))
+    g.add((geometry, SKG.centroidMethod, Literal(centroid.method)))
+    g.add((geometry, SKG.locationCount, Literal(centroid.location_count, datatype=XSD.integer)))
+    # Decimal(str(x)): an rdflib Literal holding a Python float is rejected by
+    # pySHACL as xsd:decimal when validated in memory (DROMIC batches are).
+    g.add((geometry, SKG.spreadKm, Literal(Decimal(str(centroid.spread_km)), datatype=XSD.decimal)))
+    g.add((event_iri, SKG.latitude, Literal(Decimal(str(centroid.lat)), datatype=XSD.decimal)))
+    g.add((event_iri, SKG.longitude, Literal(Decimal(str(centroid.lon)), datatype=XSD.decimal)))
+    return geometry

@@ -36,7 +36,7 @@ COVERAGE = ROOT / "logs" / "psgc_geo_coverage.csv"
 SKG = Namespace("https://sakuna.ph/")
 GEO = Namespace("http://www.opengis.net/ont/geosparql#")
 
-COVERED_LEVELS = {"Prov", "City", "Mun", "SubMun"}
+COVERED_LEVELS = {"Reg", "Prov", "City", "Mun", "SubMun"}
 
 # Compact units only, so the polygon centroid is close to the town itself.
 REFERENCE_TOLERANCE_KM = 10.0
@@ -121,7 +121,7 @@ def main() -> int:
     ok, _ = _validate(bad_precision, "invalid precision")
     report(4, "invalid geoPrecision detected as violation", not ok)
 
-    # TEST 5: coverage — every Prov/City/Mun/SubMun has exactly one point
+    # TEST 5: coverage — every Reg/Prov/City/Mun/SubMun has exactly one point
     missing, multiple = [], []
     for s, _p, level in base.triples((None, SKG.geographicLevel, None)):
         if str(level) not in COVERED_LEVELS:
@@ -131,7 +131,7 @@ def main() -> int:
             missing.append(f"{base.value(s, SKG.psgcCode)} {base.value(s, URIRef('http://www.w3.org/2000/01/rdf-schema#label'))}")
         elif n > 1:
             multiple.append(str(s))
-    report(5, "every Prov/City/Mun/SubMun has exactly one point", not missing and not multiple)
+    report(5, "every Reg/Prov/City/Mun/SubMun has exactly one point", not missing and not multiple)
     for m in missing:
         print(f"    missing: {m}")
     for m in multiple:

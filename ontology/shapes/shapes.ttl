@@ -102,6 +102,38 @@ sgsh:DisasterEventLongitudePropertyShape a sh:PropertyShape ;
     sh:minInclusive -180.0 ;
     sh:maxInclusive 180.0 .
 
+sgsh:EventGeometryNodeShape a sh:NodeShape ;
+    rdfs:comment "Validates event point geometries (DROMIC event centroids): one WKT POINT in the Philippine bounding box, plus how it was computed." ;
+    sh:targetObjectsOf geo:hasGeometry ;
+    sh:nodeKind sh:IRI ;
+    sh:property [
+        sh:path geo:asWKT ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:datatype geo:wktLiteral ;
+        sh:pattern "^POINT \\(1(1[1-9]|2[0-8])(\\.[0-9]+)? ([4-9]|1[0-9]|2[01])(\\.[0-9]+)?\\)$" ;
+        sh:message "Event geometry must be POINT (lon lat) inside the Philippine bounding box (lon 111-128, lat 4-21)."
+    ] , [
+        sh:path :geoPrecision ;
+        sh:maxCount 1 ;
+        sh:in ( "Region" "Province" "City" "Municipality" "SubMunicipality" "Barangay" )
+    ] , [
+        sh:path :centroidMethod ;
+        sh:maxCount 1 ;
+        sh:datatype xsd:string ;
+        sh:pattern "^(single-location|unweighted-mean|weighted-mean:[A-Za-z]+)$"
+    ] , [
+        sh:path :locationCount ;
+        sh:maxCount 1 ;
+        sh:datatype xsd:integer ;
+        sh:minInclusive 1
+    ] , [
+        sh:path :spreadKm ;
+        sh:maxCount 1 ;
+        sh:datatype xsd:decimal ;
+        sh:minInclusive 0
+    ] .
+
 sgsh:DisasterEventReferencePropertyShape a sh:PropertyShape ;
     rdfs:comment "reference follows the DisasterEvent data property range xsd:string." ;
     sh:path :reference ;

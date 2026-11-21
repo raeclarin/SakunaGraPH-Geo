@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import csv
 import logging
 import os
 from collections.abc import Iterable
@@ -9,12 +10,19 @@ from pathlib import Path
 from mappings.dromic import (
     aff_pop_mapping,
     assistance_mapping,
+    event_geometry_mapping,
     event_mapping,
     housing_mapping,
     pevac_mapping,
     prov_mapping,
 )
 from mappings.graph import Graph, create_graph
+from semantic_processing.event_geo import (
+    WEIGHT_FIELDS,
+    compute_event_centroid,
+    get_geo_index,
+    split_location_iris,
+)
 from transform.dromic import (
     load_aff_pop,
     load_assistance,
@@ -34,6 +42,12 @@ log = logging.getLogger(__name__)
 DATA_DIR = "../data/parsed/dromic"
 OUT_DIR = "../data/rdf/events/dromic"
 DEFAULT_BATCH_SIZE = 100
+CENTROID_REPORT = "../logs/dromic_event_centroids.csv"
+CENTROID_REPORT_FIELDS = [
+    "folder", "event_iri", "event_name", "lat", "lon", "precision", "method",
+    "location_count", "unweighted_lat", "unweighted_lon", "weighting_shift_km",
+    "spread_km", "location_source", "unresolved",
+]
 
 
 def _record_assistance_failure(folder_path: str, needs_rerun_path: str, exc: Exception) -> None:
@@ -47,7 +61,80 @@ def _record_assistance_failure(folder_path: str, needs_rerun_path: str, exc: Exc
             f.write("\n" + folder)
 
 
-def _map_event(folder_path: str, g: Graph, needs_rerun_path: str) -> None:
+def _event_locations(ev, aps, hs):
+    """Locations feeding the event centroid, best source first.
+
+    1. affected-population rows (municipality level, carry weights)
+    2. the event's own metadata location (e.g. a fire in one town)
+    3. housing-damage rows (no weights)
+    """
+    if aps:
+        rows = [
+            (iri, {f: getattr(ap, f, None) for f in WEIGHT_FIELDS})
+            for ap in aps if ap.hasLocation
+            for iri in split_location_iris(ap.hasLocation)
+        ]
+        if rows:
+            return rows, "affected-population"
+    if ev.hasLocation:
+        return [(iri, {}) for iri in split_location_iris(ev.hasLocation)], "event-metadata"
+    if hs:
+        rows = [(iri, {}) for h in hs if h.hasLocation for iri in split_location_iris(h.hasLocation)]
+        if rows:
+            return rows, "housing-damage"
+    return [], ""
+
+
+def _map_centroid(folder_path: str, g: Graph, event_iri, ev, aps, hs, centroid_rows) -> None:
+    locations, location_source = _event_locations(ev, aps, hs)
+    centroid = compute_event_centroid(get_geo_index(), locations) if locations else None
+    if centroid is None:
+        log.warning("No event centroid for %s (no resolvable locations)", ev.eventName)
+        return
+    event_geometry_mapping(g, event_iri, centroid)
+    log.info(
+        "Event centroid %.4f,%.4f (%s, %s, %d locations, spread %.1f km)",
+        centroid.lat, centroid.lon, centroid.precision, centroid.method,
+        centroid.location_count, centroid.spread_km,
+    )
+    if centroid.unresolved:
+        log.warning("Unresolved locations for %s: %s", ev.eventName, centroid.unresolved)
+    if centroid_rows is not None:
+        centroid_rows.append({
+            "folder": Path(folder_path).name,
+            "event_iri": str(event_iri),
+            "event_name": ev.eventName,
+            "lat": centroid.lat,
+            "lon": centroid.lon,
+            "precision": centroid.precision,
+            "method": centroid.method,
+            "location_count": centroid.location_count,
+            "unweighted_lat": centroid.unweighted_lat,
+            "unweighted_lon": centroid.unweighted_lon,
+            "weighting_shift_km": centroid.weighting_shift_km,
+            "spread_km": centroid.spread_km,
+            "location_source": location_source,
+            "unresolved": "|".join(centroid.unresolved),
+        })
+
+
+def _write_centroid_report(rows: list[dict], path: str = CENTROID_REPORT) -> None:
+    if not rows:
+        return
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w", newline="", encoding="utf-8") as f:
+        w = csv.DictWriter(f, fieldnames=CENTROID_REPORT_FIELDS)
+        w.writeheader()
+        w.writerows(rows)
+    log.info("Wrote event centroid report: %s (%d events)", path, len(rows))
+
+
+def _map_event(
+    folder_path: str,
+    g: Graph,
+    needs_rerun_path: str,
+    centroid_rows: list[dict] | None = None,
+) -> None:
     log.info("Processing DROMIC event folder: %s", folder_path)
 
     ev = load_event(os.path.join(folder_path, "metadata.json"))
@@ -66,6 +153,8 @@ def _map_event(folder_path: str, g: Graph, needs_rerun_path: str) -> None:
     hs = load_housing(folder_path)
     if hs:
         housing_mapping(g, hs, event_iri)
+
+    _map_centroid(folder_path, g, event_iri, ev, aps, hs, centroid_rows)
 
     try:
         assistance = load_assistance(folder_path)
@@ -145,6 +234,7 @@ def process_event_batches(
     validator: ShaclValidator | None = None,
     batch_size: int = DEFAULT_BATCH_SIZE,
     fail_fast: bool = True,
+    centroid_rows: list[dict] | None = None,
 ) -> int:
     if batch_size <= 0:
         raise ValueError("batch_size must be greater than zero")
@@ -164,7 +254,7 @@ def process_event_batches(
         batch_graph = create_graph()
         for folder in batch_folders:
             folder_path = os.path.join(sub_data_dir, folder)
-            _map_event(folder_path, batch_graph, needs_rerun_path)
+            _map_event(folder_path, batch_graph, needs_rerun_path, centroid_rows)
 
         if validator is not None:
             try:
@@ -262,6 +352,7 @@ def run(
         effective_batch_size,
     )
     main_graph = create_graph()
+    centroid_rows: list[dict] = []
     processed = process_event_batches(
         selected_folders,
         main_graph,
@@ -270,7 +361,9 @@ def run(
         validator=validator,
         batch_size=effective_batch_size,
         fail_fast=fail_fast,
+        centroid_rows=centroid_rows,
     )
+    _write_centroid_report(centroid_rows)
 
     out_dir = os.path.dirname(out_file)
     if out_dir:

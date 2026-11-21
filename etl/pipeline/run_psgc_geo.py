@@ -9,6 +9,7 @@ Sources:
     cod-ab   (default) HDX COD-AB shapefiles in data/raw/boundaries/cod-ab/:
              ADM2 -> provinces, ADM3 -> cities/municipalities (+ SubMun by
              parent inheritance, + barangay-dissolve for post-vintage towns).
+             Regions are dissolved from current PSGC members.
              Writes a coverage report to logs/psgc_geo_coverage.csv.
     geojson  legacy: province polygons from frontend/static/data/regions.geojson.
 
@@ -38,6 +39,7 @@ DEFAULT_GEOJSON = ROOT_DIR / "frontend" / "static" / "data" / "regions.geojson"
 DEFAULT_SHAPES = ROOT_DIR / "ontology" / "shapes" / "psgc" / "shapes.ttl"
 DEFAULT_REPORT_DIR = ROOT_DIR / "logs"
 
+COD_AB_REGION_LEVELS = ("Reg",)
 COD_AB_PROVINCE_LEVELS = ("Prov",)
 COD_AB_MUNI_LEVELS = ("City", "Mun", "SubMun")
 
@@ -71,11 +73,14 @@ def _joined_from_cod_ab(
     units = psgc_geodata.index_psgc(g)
     records: dict[str, psgc_geodata.PointRecord] = {}
     unjoined_rows: list[dict] = []
+    geoms: dict[str, object] = {}
 
+    # ADM1 is not read: its polygons predate NIR and Sulu's move to Region IX.
+    # Regions are dissolved from their current members instead (below).
     for adm, levels in ((2, COD_AB_PROVINCE_LEVELS), (3, COD_AB_MUNI_LEVELS)):
         log.info("Reading COD-AB ADM%d from %s", adm, cod_ab_dir)
         gdf = psgc_geodata.read_cod_ab_layer(cod_ab_dir, adm)
-        recs, unjoined = psgc_geodata.join_cod_ab(gdf, units, levels)
+        recs, unjoined = psgc_geodata.join_cod_ab(gdf, units, levels, geoms=geoms)
         log.info("ADM%d: %d features, %d joined, %d unjoined", adm, len(gdf), len(recs), len(unjoined))
         records.update(recs)
         for row in unjoined:
@@ -83,8 +88,9 @@ def _joined_from_cod_ab(
 
     unjoined_adm3 = [r for r in unjoined_rows if r["adm"] == 3 and r["reason"] != "no geometry"]
     missing = psgc_geodata.fill_gaps(
-        records, units, COD_AB_MUNI_LEVELS, cod_ab_dir, unjoined_adm3
+        records, units, COD_AB_MUNI_LEVELS, cod_ab_dir, unjoined_adm3, geom_store=geoms
     )
+    missing += psgc_geodata.dissolve_regions(records, units, geoms)
     missing += [
         u for c, u in units.items()
         if u.level in COD_AB_PROVINCE_LEVELS and c not in records
@@ -93,9 +99,12 @@ def _joined_from_cod_ab(
     _write_reports(records, missing, unjoined_rows, units, report_dir)
 
     by_rule = collections.Counter(r.matched_by for r in records.values())
-    target = [u for u in units.values() if u.level in COD_AB_PROVINCE_LEVELS + COD_AB_MUNI_LEVELS]
+    target = [
+        u for u in units.values()
+        if u.level in COD_AB_REGION_LEVELS + COD_AB_PROVINCE_LEVELS + COD_AB_MUNI_LEVELS
+    ]
     log.info(
-        "Coverage: %d of %d PSGC Prov/City/Mun/SubMun units have a point; by rule: %s",
+        "Coverage: %d of %d PSGC Reg/Prov/City/Mun/SubMun units have a point; by rule: %s",
         len(records), len(target), dict(sorted(by_rule.items())),
     )
     for unit in missing:

@@ -30,7 +30,7 @@ from pathlib import Path
 from typing import Iterable
 
 from rdflib import Graph, Literal, Namespace, RDF, RDFS, URIRef
-from rdflib.namespace import SKOS, XSD
+from rdflib.namespace import DCTERMS, SKOS, XSD
 from shapely.geometry import shape
 
 log = logging.getLogger(__name__)
@@ -291,6 +291,8 @@ def emit_geometry_graph(
             out.add((source, RDFS.label, Literal(meta["label"])))
             out.add((source, RDFS.comment, Literal(meta["comment"])))
             out.add((source, RDFS.seeAlso, URIRef(meta["url"])))
+            if meta.get("license"):
+                out.add((source, DCTERMS.license, URIRef(meta["license"])))
 
     log.info("Emitted geometry for %d PSGC individuals", len(joined))
     return out
@@ -334,6 +336,7 @@ DATASETS = {
             "CRS EPSG:4326. Centroids computed in EPSG:32651."
         ),
         "url": "https://data.humdata.org/dataset/cod-ab-phl",
+        "license": "https://creativecommons.org/licenses/by/3.0/igo/",
     },
     GEOJSON_DATASET: {
         "label": "Sakuna.PH frontend province boundaries (regions.geojson)",
@@ -512,10 +515,13 @@ def join_cod_ab(
     gdf,
     units: dict[str, PsgcUnit],
     levels: Iterable[str],
+    geoms: dict[str, object] | None = None,
 ) -> tuple[dict[str, PointRecord], list[dict]]:
     """Join one COD-AB layer to PSGC units of the given levels.
 
-    Returns (records by PSGC code, unjoined feature rows).
+    Returns (records by PSGC code, unjoined feature rows). When `geoms` is
+    given, the matched polygon (EPSG:4326) is stored under the PSGC code so
+    regions can later be dissolved from their current members.
     """
     levels = set(levels)
     targets = {c: u for c, u in units.items() if u.level in levels}
@@ -538,6 +544,8 @@ def join_cod_ab(
             ref_lat=_float(row.get("center_lat")),
             ref_lon=_float(row.get("center_lon")),
         )
+        if geoms is not None:
+            geoms[unit.code] = gdf.geometry.iloc[i]
 
     # Passes 1-2: code (or region re-code) with name agreement.
     for i, row in enumerate(gdf.itertuples(index=False)):
@@ -592,6 +600,7 @@ def fill_gaps(
     levels: Iterable[str],
     cod_ab_dir: Path,
     unjoined_adm3: list[dict],
+    geom_store: dict[str, object] | None = None,
 ) -> list[PsgcUnit]:
     """Steps 4-5: parent inheritance, then barangay dissolve.
 
@@ -660,7 +669,10 @@ def fill_gaps(
         if not geoms:
             remaining.append(unit)
             continue
-        merged = gpd.GeoSeries([unary_union(geoms)], crs=adm4.crs)
+        union = unary_union(geoms)
+        if geom_store is not None:
+            geom_store[unit.code] = union
+        merged = gpd.GeoSeries([union], crs=adm4.crs)
         lon, lat = _points_from_geoseries(merged)[0]
         records[unit.code] = PointRecord(
             unit=unit, lon=lon, lat=lat, matched_by="bgy-dissolve",
@@ -671,6 +683,47 @@ def fill_gaps(
             "Dissolved %d of %d barangays for %s (%s)",
             len(geoms), len(bgys), unit.label, unit.code,
         )
+    return remaining
+
+
+def dissolve_regions(
+    records: dict[str, PointRecord],
+    units: dict[str, PsgcUnit],
+    geoms: dict[str, object],
+) -> list[PsgcUnit]:
+    """Region points from the union of each region's *current* members.
+
+    COD-AB v03's ADM1 polygons predate the Negros Island Region and Sulu's
+    return to Region IX, so they are stale for Regions VI, VII, IX, NIR and
+    BARMM. Instead, union the already-matched polygons of every province,
+    city and municipality whose PSGC parent is the region. Polygons are
+    simplified (~100 m) first; irrelevant at region scale, much faster.
+
+    Returns the regions that still have no point.
+    """
+    import geopandas as gpd
+    from shapely.ops import unary_union
+
+    members: dict[URIRef, list[str]] = {}
+    for u in units.values():
+        if u.level in ("Prov", "City", "Mun") and u.parent is not None:
+            members.setdefault(u.parent, []).append(u.code)
+
+    remaining: list[PsgcUnit] = []
+    for region in (u for u in units.values() if u.level == "Reg"):
+        codes = members.get(region.iri, [])
+        parts = [geoms[c].simplify(0.001) for c in codes if c in geoms]
+        if not parts:
+            remaining.append(region)
+            continue
+        merged = gpd.GeoSeries([unary_union(parts)], crs="EPSG:4326")
+        lon, lat = _points_from_geoseries(merged)[0]
+        records[region.code] = PointRecord(
+            unit=region, lon=lon, lat=lat, matched_by="member-dissolve",
+            precision="Region",
+            source_name=f"{len(parts)}/{len(codes)} member units",
+        )
+        log.info("Dissolved %d of %d members for %s", len(parts), len(codes), region.label)
     return remaining
 
 

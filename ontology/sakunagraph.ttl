@@ -926,6 +926,33 @@ geo:asWKT rdf:type owl:DatatypeProperty ;
               rdfs:label "geometry precision"@en .
 
 
+###  https://sakuna.ph/centroidMethod
+:centroidMethod rdf:type owl:DatatypeProperty ;
+                rdfs:subPropertyOf owl:topDataProperty ;
+                rdfs:domain geo:Geometry ;
+                rdfs:range xsd:string ;
+                rdfs:comment "How an aggregated point was computed: single-location, unweighted-mean, or weighted-mean:<field> (e.g. weighted-mean:affectedPersons). Means are taken on the sphere (3-D unit vectors)." ;
+                rdfs:label "centroid method"@en .
+
+
+###  https://sakuna.ph/locationCount
+:locationCount rdf:type owl:DatatypeProperty ;
+               rdfs:subPropertyOf owl:topDataProperty ;
+               rdfs:domain geo:Geometry ;
+               rdfs:range xsd:integer ;
+               rdfs:comment "Number of distinct locations aggregated into an event point." ;
+               rdfs:label "location count"@en .
+
+
+###  https://sakuna.ph/spreadKm
+:spreadKm rdf:type owl:DatatypeProperty ;
+          rdfs:subPropertyOf owl:topDataProperty ;
+          rdfs:domain geo:Geometry ;
+          rdfs:range xsd:decimal ;
+          rdfs:comment "Largest great-circle distance (km) from an event point to any of the locations it aggregates; 0 for a single location." ;
+          rdfs:label "spread (km)"@en .
+
+
 ###  https://sakuna.ph/hasBarangay
 :hasBarangay rdf:type owl:DatatypeProperty ;
              rdfs:domain [ rdf:type owl:Class ;

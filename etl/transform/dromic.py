@@ -188,7 +188,8 @@ def load_aff_pop(folder_path: str) -> Tuple[List[AffectedPopulation] | None, Lis
 
     src_paths: List[str] = []
 
-    files = os.listdir(folder_path)
+    # sorted: os.listdir order is not guaranteed, and the first file seeds the join
+    files = sorted(os.listdir(folder_path))
 
     # Check if a total displaced/served file exists anywhere
     has_total_displaced = any(
@@ -253,6 +254,11 @@ def load_aff_pop(folder_path: str) -> Tuple[List[AffectedPopulation] | None, Lis
         if exprs:
             combined = combined.with_columns(exprs).drop(drop_cols)
     
+    # Sort before numbering: the full joins above return rows in no guaranteed
+    # order, and the row number becomes part of each row's IRI. Unsorted, the
+    # same town could get a different IRI on every run (notes.md §8.15).
+    combined = combined.sort("hasLocation", nulls_last=True, maintain_order=True)
+
     if len(combined) > 1: 
         combined = combined.with_row_index("id", 1)
 
@@ -290,6 +296,9 @@ def load_housing(folder_path: str) -> List[Housing] | None:
     )
 
     df = to_int(df, ["totallyDamagedHouses", "partiallyDamagedHouses"])
+
+    # Same numbering rule as affected population: row IRIs follow location order.
+    df = df.sort("hasLocation", nulls_last=True, maintain_order=True)
 
     if len(df) > 1:
         df = df.with_row_index("id", 1)
@@ -354,6 +363,9 @@ def load_assistance(folder_path: str) -> List[Assistance] | None:
             & (pl.col("contributionAmount") != 0)
         )
 
+
+    # Same numbering rule: row IRIs follow (location, organisation) order.
+    df = df.sort(["hasLocation", "contributingOrg"], nulls_last=True, maintain_order=True)
 
     if len(df) > 1:
         df = df.with_row_index("id", 1)

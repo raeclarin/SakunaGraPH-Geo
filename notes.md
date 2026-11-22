@@ -720,3 +720,78 @@ before, because Bug B made them fail first; fixing Bug B exposed this gap.
 **Verified before handing over:** built `orgs.ttl` into a scratch folder, mapped the 3 folders in
 memory with a scratch rerun file, and validated with the same context `run_dromic` uses:
 **SHACL passed, 359 data triples**, all three centroids as expected.
+
+## 8.15 Determinism fixes, prov.ttl restored, pipeline linked to GraphDB (2026-11-22)
+
+### Determinism fixes (needed before automation re-runs the pipeline constantly)
+1. **Event precision flipped between identical runs** (Mayon: "Municipality" on one run, "City" on
+   the next). City and Municipality share a rank, and `max()` returned whichever came first.
+   Fix: `coarsest_precision()` in `etl/semantic_processing/event_geo.py` with a fixed tie order;
+   a mix of cities and municipalities is always "Municipality". New check 10b in
+   `check_event_centroid` (same inputs, reversed order, same precision). **14/14 pass.**
+2. **Row IRIs depended on row order.** Affected-population rows come out of an unordered polars
+   `join(how="full")`, and the row number becomes part of the IRI (`{event}/affectedpopulation/{n}`),
+   so the same town could get a different IRI per run. Fix (`etl/transform/dromic.py`): sort
+   the input file list, and sort rows by `hasLocation` before numbering in `load_aff_pop`,
+   `load_housing` and `load_assistance` (the last two were already stable; sorted for one rule).
+   **Verified:** mapped the 3 events in two separate processes; graphs isomorphic, and all 267
+   triples without blank nodes byte-identical. (Monetary amounts use blank nodes, whose labels
+   are random by design; this is not instability.)
+
+### prov.ttl restored
+`data/rdf/prov/prov.ttl` was missing (deleted from git in `bcaed89`, Feb 2026, see §8.14). The
+existing GraphDB repository `SakunaGraPH` still had the `https://sakuna.ph/prov` graph (24
+triples, a newer version than the git copy: it uses `org/CRED`, `org/UPDG`). Exported it with a
+read-only `CONSTRUCT`, saved it as `data/rdf/prov/prov.ttl`, and added `:dromic_website_access`
+(prov:Activity, associated with `org/DROMIC`): 28 triples. `run_dromic --validate` now runs with
+no missing-context warnings.
+
+### GraphDB environment (local laptop)
+- GraphDB **Free 11.4.0** on `localhost:7200`.
+- Existing repository **`SakunaGraPH`** (internship copy, untouched): ruleset `owl2-rl-optimized`,
+  5.87 M statements incl. inferred; graphs events/dromic 321,711 · events/ndrrmc 1,425,247 ·
+  events/emdat 31,666 · events/gda 12,975 · psgc 16,088 (older PSGC, no barangays/coordinates) ·
+  ontology 2,495 · orgs 246 · prov 24 · resolution 1,937.
+- Also exists: a copy on school servers (set up over SSH by an intern mate), and other interns'
+  local copies.
+
+### New repository `SakunaGraPH-dev` and first load (Goal 5 core)
+- Created via the GraphDB REST API (`POST /rest/repositories`), with the config cloned from
+  `SakunaGraPH` (same ruleset `owl2-rl-optimized`, same index settings), so inference behaves the
+  same.
+- Loaded with the existing loader, unchanged:
+  `python -m pipeline.load_graphdb --repo SakunaGraPH-dev --replace --timeout 1200`
+  → 7 files into 5 named graphs, each replaced in one atomic transaction, **5 min 10 s** (dominated by
+  OWL 2 RL inference over the 357k-triple PSGC graph).
+- Safety note: the loader's default `--repo` is `sakunagraph` (lowercase), which does not exist
+  here, so a run without `--repo` fails instead of touching the main repository. **Always pass
+  `--repo SakunaGraPH-dev`.**
+
+| Named graph | Triples (explicit) |
+|---|---|
+| events/dromic | 359 |
+| ontology | 2,648 |
+| orgs | 255 |
+| prov | 28 |
+| psgc (psgc.ttl + psgc_geo.ttl) | 368,819 |
+
+**SPARQL verification (all passed):**
+1. All 3 events return lat/lon + precision, method, location count and spread (values as in §8.14).
+2. Mayon: all 13 affected towns return with their own coordinates (event → town → point chain,
+   which is what the Goal 6 map needs).
+3. Inference as predicted: events are inferred `geo:Feature`, `:DisasterEvent`, `prov:Entity`.
+4. PSGC points by precision: Municipality 1,493 · City 163 (149 cities + 14 Manila districts) ·
+   Province 82 · Region 18 = 1,756.
+5. **GeoSPARQL functions work without extra setup:** `geof:distance` gives the Mayon event point
+   17 km from the crater (13.257 N, 123.685 E); El Niño 266 km; QC fire 324 km. So spatial queries
+   ("events within X km") are available for the thesis.
+
+### Deploying to the school server later (thinking, not decided)
+- **No schema changes needed**: GraphDB is schema-less; the new properties are just triples. Only
+  the `ontology` graph must be reloaded so they are defined.
+- Safest: **a second repository on the same server** (like `SakunaGraPH-dev` here); the API's
+  repository ID becomes a config switch. A second GraphDB *instance* is unnecessary.
+- Replacing graphs in the live repository is possible per named graph (`--replace`), but only once
+  the new pipeline has re-processed the **full** DROMIC history; replacing `events/dromic` with a few
+  events would drop the rest. Replacing `psgc` with the 3Q-2026 version would also change codes that
+  old events from other sources point to (NIR, Sulu, Maguindanao).

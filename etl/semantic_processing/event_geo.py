@@ -58,6 +58,10 @@ PRECISION_RANK = {
     "Region": 3,
 }
 
+# Tie-break among levels of equal rank, so the label never depends on input
+# order (City and Municipality share a rank; a mix of both is "Municipality").
+PRECISION_TIE_ORDER = ("Region", "Province", "Municipality", "City", "SubMunicipality", "Barangay")
+
 METHOD_SINGLE = "single-location"
 METHOD_UNWEIGHTED = "unweighted-mean"
 METHOD_WEIGHTED = "weighted-mean:{field}"
@@ -190,10 +194,7 @@ def compute_event_centroid(
     else:
         lat, lon, method = u_lat, u_lon, METHOD_UNWEIGHTED
 
-    precision = max(
-        (p.precision for p in pts),
-        key=lambda level: PRECISION_RANK.get(level, 99),
-    )
+    precision = coarsest_precision(p.precision for p in pts)
     spread = max(haversine_km(lat, lon, p.lat, p.lon) for p in pts)
 
     return EventCentroid(
@@ -207,6 +208,22 @@ def compute_event_centroid(
         spread_km=round(spread, 3),
         weight_field=weight_field,
         unresolved=unresolved,
+    )
+
+
+def coarsest_precision(levels: Iterable[str]) -> str:
+    """Coarsest level among `levels`, deterministic regardless of order.
+
+    Previously `max()` returned whichever tied level came first, so an event
+    mixing cities and municipalities flipped between "City" and
+    "Municipality" across identical runs (notes.md §8.15).
+    """
+    levels = set(levels)
+    top = max(PRECISION_RANK.get(level, 99) for level in levels)
+    tied = [level for level in levels if PRECISION_RANK.get(level, 99) == top]
+    return min(
+        tied,
+        key=lambda level: PRECISION_TIE_ORDER.index(level) if level in PRECISION_TIE_ORDER else len(PRECISION_TIE_ORDER),
     )
 
 

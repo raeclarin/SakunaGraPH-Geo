@@ -128,6 +128,13 @@ def main() -> int:
            abs(c.spread_km - farthest) < 0.001,
            f"{c.lat},{c.lon} spread {c.spread_km} km, shift {c.weighting_shift_km} km")
 
+    # 10b. Precision does not depend on input order (City + Municipality mix)
+    rows = [(LEGAZPI, {"affectedPersons": 10}), (DARAGA, {"affectedPersons": 10})]
+    a = compute_event_centroid(index, rows)
+    b = compute_event_centroid(index, list(reversed(rows)))
+    report("precision independent of order (City+Municipality -> Municipality)",
+           a.precision == b.precision == "Municipality", f"{a.precision} / {b.precision}")
+
     # 11. Emitted RDF passes the main SHACL shapes; a bad point is caught
     g = Graph()
     event = SKG["dromic/test-event"]

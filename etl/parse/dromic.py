@@ -841,7 +841,14 @@ def process_file(pdf_path: Path, output_dir: Path):
     result = converter.convert(pdf_path)
     doc = result.document
 
-    manifest_path = pdf_path.parent / "manifest.json"  # or per-file json
+    # Prefer the fetcher's own manifest (raw/dromic-new/{year}/manifest.json):
+    # the copy next to the PDFs ({year}-pdf/) can be stale, because
+    # dromic-docx-to-pdf.py never overwrites it (notes.md §8.17).
+    manifest_path = pdf_path.parent / "manifest.json"
+    if pdf_path.parent.name.endswith("-pdf"):
+        source_manifest = pdf_path.parent.parent / pdf_path.parent.name[: -len("-pdf")] / "manifest.json"
+        if source_manifest.exists():
+            manifest_path = source_manifest
     event = extract_report_metadata(doc, pdf_path, manifest_path)
 
     folder_name = make_folder_name(os.path.basename(pdf_path), event.lastUpdateDate) or event.eventName

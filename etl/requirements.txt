@@ -14,3 +14,4 @@ docx2pdf
 docling
 lxml
 pyshacl
+pytest

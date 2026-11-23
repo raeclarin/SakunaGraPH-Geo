@@ -238,6 +238,8 @@ def process_event_batches(
     batch_size: int = DEFAULT_BATCH_SIZE,
     fail_fast: bool = True,
     centroid_rows: list[dict] | None = None,
+    quarantine: bool = False,
+    quarantined: list[str] | None = None,
 ) -> int:
     if batch_size <= 0:
         raise ValueError("batch_size must be greater than zero")
@@ -246,6 +248,15 @@ def process_event_batches(
     if not folder_names:
         log.warning("No DROMIC events found")
         return 0
+
+    if quarantine:
+        return _process_with_quarantine(
+            folder_names, g,
+            sub_data_dir=sub_data_dir, needs_rerun_path=needs_rerun_path,
+            validator=validator, batch_size=batch_size,
+            centroid_rows=centroid_rows,
+            quarantined=quarantined if quarantined is not None else [],
+        )
 
     failures: list[ShaclValidationError] = []
     processed = 0
@@ -290,6 +301,84 @@ def process_event_batches(
     return processed
 
 
+def _quarantine_folder(folder: str, needs_rerun_path: str, reason: str, quarantined: list[str]) -> None:
+    """Skip a failing event and list it in _needs_rerun.txt (run_dromic and
+    the parser's check_fails both skip folders listed there)."""
+    log.error("QUARANTINED %s: %s", folder, reason)
+    quarantined.append(folder)
+    path = Path(needs_rerun_path)
+    existing = path.read_text(encoding="utf-8").splitlines() if path.exists() else []
+    if folder not in existing:
+        with path.open("a", encoding="utf-8") as f:
+            f.write("\n" + folder)
+
+
+def _process_with_quarantine(
+    folder_names: list[str],
+    g: Graph,
+    *,
+    sub_data_dir: str,
+    needs_rerun_path: str,
+    validator: ShaclValidator | None,
+    batch_size: int,
+    centroid_rows: list[dict] | None,
+    quarantined: list[str],
+) -> int:
+    """Automation mode: one bad report must not block every other event.
+
+    Each event is mapped into its own graph, so a mapping exception drops only
+    that event. Batches are validated as usual; when a batch fails, its events
+    are re-validated one by one and only the failing ones are quarantined.
+    (notes.md §8.16)
+    """
+    processed = 0
+    batches = list(_batched(folder_names, batch_size))
+    for batch_no, batch_folders in enumerate(batches, start=1):
+        label = f"DROMIC batch {batch_no}/{len(batches)}"
+        log.info("Processing %s (%d event folders, quarantine mode)", label, len(batch_folders))
+
+        mapped: list[tuple[str, Graph]] = []
+        for folder in batch_folders:
+            event_graph = create_graph()
+            try:
+                _map_event(os.path.join(sub_data_dir, folder), event_graph, needs_rerun_path, centroid_rows)
+            except Exception as exc:
+                _quarantine_folder(folder, needs_rerun_path, f"mapping error: {exc!r}", quarantined)
+                continue
+            mapped.append((folder, event_graph))
+
+        batch_graph = create_graph()
+        for _, event_graph in mapped:
+            batch_graph += event_graph
+
+        passed = mapped
+        if validator is not None and mapped:
+            try:
+                _validate_batch_graph(batch_graph, validator=validator, label=label,
+                                      folders=[f for f, _ in mapped])
+            except ShaclValidationError:
+                log.warning("%s failed SHACL; validating its events one by one", label)
+                passed = []
+                for folder, event_graph in mapped:
+                    try:
+                        validator.validate_graph(event_graph, label=folder,
+                                                 focus_nodes=validation_focus_nodes(event_graph))
+                    except ShaclValidationError as exc:
+                        _quarantine_folder(folder, needs_rerun_path, "SHACL violation", quarantined)
+                        log.error(exc.result.results_text)
+                        continue
+                    passed.append((folder, event_graph))
+
+        for _, event_graph in passed:
+            g += event_graph
+        processed += len(passed)
+
+    if centroid_rows is not None and quarantined:
+        bad = set(quarantined)
+        centroid_rows[:] = [row for row in centroid_rows if row["folder"] not in bad]
+    return processed
+
+
 def _batched(values: list[str], batch_size: int) -> Iterable[list[str]]:
     for start in range(0, len(values), batch_size):
         yield values[start : start + batch_size]
@@ -306,7 +395,8 @@ def run(
     validate_output: bool = False,
     fail_fast: bool = True,
     include_context_graphs: bool = True,
-) -> None:
+    quarantine: bool = False,
+) -> dict:
     if start < 0:
         raise ValueError("start must be greater than or equal to zero")
     if limit is not None and limit < 0:
@@ -363,6 +453,7 @@ def run(
     )
     main_graph = create_graph()
     centroid_rows: list[dict] = []
+    quarantined: list[str] = []
     processed = process_event_batches(
         selected_folders,
         main_graph,
@@ -372,6 +463,8 @@ def run(
         batch_size=effective_batch_size,
         fail_fast=fail_fast,
         centroid_rows=centroid_rows,
+        quarantine=quarantine,
+        quarantined=quarantined,
     )
     _write_centroid_report(centroid_rows)
 
@@ -386,6 +479,16 @@ def run(
         out_file,
         skipped,
     )
+    if quarantined:
+        log.warning("Quarantined %d event(s) (listed in %s): %s",
+                    len(quarantined), needs_rerun_path, ", ".join(quarantined))
+    return {
+        "processed": processed,
+        "skipped": skipped,
+        "quarantined": quarantined,
+        "triples": len(main_graph),
+        "out_file": out_file,
+    }
 
 
 def _year_dirs(data_dir: str) -> list[str]:
@@ -437,6 +540,12 @@ if __name__ == "__main__":
         action="store_true",
         help="Run SHACL validation without PSGC, disaster-type, organization, or provenance context graphs.",
     )
+    parser.add_argument(
+        "--quarantine",
+        action="store_true",
+        help="Skip (and list in _needs_rerun.txt) events that fail mapping or SHACL "
+             "instead of aborting the whole run. Used by pipeline.update_dromic.",
+    )
     parser.add_argument("--all", action="store_true")
     args = parser.parse_args()
 
@@ -452,6 +561,7 @@ if __name__ == "__main__":
                 validate_output=args.validate,
                 fail_fast=not args.no_fail_fast,
                 include_context_graphs=not args.no_context,
+                quarantine=args.quarantine,
             )
     else:
         run(
@@ -464,4 +574,5 @@ if __name__ == "__main__":
             validate_output=args.validate,
             fail_fast=not args.no_fail_fast,
             include_context_graphs=not args.no_context,
+            quarantine=args.quarantine,
         )

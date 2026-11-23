@@ -16,8 +16,9 @@ Method
    field covers every location, the centroid is unweighted.
 4. Average on the sphere: convert each point to a 3-D unit vector, take the
    (weighted) mean vector, convert back to lat/lon. This is the standard
-   geographic mean; it is exact regardless of map projection and equals the
-   plain lat/lon mean to well under a metre at Philippine scales.
+   geographic mean; it is exact regardless of map projection. A plain lat/lon
+   mean differs by ~1 m for neighbouring towns, ~15 m across a region and up
+   to ~1.7 km for a country-wide event (measured, notes.md §8.17).
 5. Precision of the event point = the coarsest level among its inputs (an
    event with one province-only row is not a municipality-precise point).
 6. Spread = the largest great-circle distance from the centroid to any input

@@ -30,6 +30,8 @@ n. **New Sakuna.PH page with centroid points** (first sample of results). Kept a
 | F9 | Sakuna.PH map page screenshot | new point-based page vs the existing choropleth, same events | after Goal 6 | screenshot |
 | F10 | Freshness timeline | DROMIC publish time vs time the event appeared in GraphDB, per report | after Goal 4 | automation logs |
 | F11 | Example SPARQL + result | GeoSPARQL query (e.g. events within 50 km of a point) and its output table | after GraphDB load | GraphDB |
+| F12 | Automated update chain | RSS poll → fetch → parse → supersede → map + SHACL (quarantine) → atomic graph replace → run log; show the hourly trigger and the 304 short-circuit | now | drawn |
+| F13 | Accuracy by stage | bar chart per stage (metadata, rows, PSGC codes, figures) for the 10-report pilot, plus centroid distance per report | after the Geography pilot | `etl/evaluation` output |
 
 ## Tables
 
@@ -38,10 +40,12 @@ n. **New Sakuna.PH page with centroid points** (first sample of results). Kept a
 | T1 | Data sources (source, version, role, licence) | now (drafted in §5.2) |
 | T2 | Join rules and units joined per rule (1,562 / 85 / 69 / 18 / 14 / 8) | now (drafted in §5.3.2) |
 | T3 | Documented exceptions (region re-codes, PSA label error, rename) | now |
-| T4 | Event centroid results for the 3 sample reports (locations, method, precision, spread, shift) | after Goal 3 |
-| T5 | Test checks and outcomes (7 PSGC + 13 centroid) | now |
+| T4 | Event centroid results for the 3 sample reports (locations, method, precision, spread, shift) | drafted in §5.4.5 |
+| T5 | Test checks and outcomes (7 PSGC + 14 centroid + pytest suite) | now |
 | T6 | Defects found and fixed (§6.6) | now |
 | T7 | Tools and libraries (§6.2) | now |
+| T8 | Automation run log summary: polls, updates, events quarantined, median publication-to-graph delay | after a week of scheduled runs |
+| T9 | Accuracy pilot: per-stage measures for 10 reports (pipeline vs Geography reference) | after the pilot |
 
 ## Suggested priority
 F1 and F2 first (they frame the paper), then F3 and F5 (the strongest results so far), then F7

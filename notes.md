@@ -795,3 +795,201 @@ no missing-context warnings.
   the new pipeline has re-processed the **full** DROMIC history; replacing `events/dromic` with a few
   events would drop the rest. Replacing `psgc` with the 3Q-2026 version would also change codes that
   old events from other sources point to (NIR, Sulu, Maguindanao).
+
+
+## 8.16 Goal 4 — automated DROMIC updates (2026-11-22)
+
+### Answers recorded before building (the user's three questions)
+
+**Q1. What runs, and how often?** One wrapper, `etl/pipeline/update_dromic.py`, performs one poll per run:
+
+| # | Stage | Code | What it does |
+|---|---|---|---|
+| 1 | fetch | `fetch/dromic_rss.py` (new) | GET the year's RSS feed; download report files not yet in `manifest.json` (key = file URL) |
+| 2 | stage | wrapper; `parse/dromic-docx-to-pdf.py` only for Word files | copy new PDFs to `raw/dromic-new/{year}-pdf/`, refresh the manifest copy there (the parser reads provenance from it) |
+| 3 | parse | `parse/dromic.py` `process_file()` | parse **only the new** PDFs; append them to `_parsed.txt` |
+| 4 | supersede | wrapper `supersede_old_reports()` | keep the newest report folder per event (see below) |
+| 5 | map + SHACL | `run_dromic.run(validate, quarantine=True)` | rebuild `dromic-{year}.ttl`; failing events are quarantined, not fatal |
+| 6 | load | `load_graphdb --replace --file dromic-*.ttl` | atomic replace of graph `events/dromic` only (all years' files, so other years stay) |
+| 7 | record | wrapper | `logs/update_dromic.log` and one row in `logs/update_runs.csv` |
+
+Three intermediate steps were not obvious:
+- The DOCX→PDF conversion. It uses Word COM, so it runs on Windows only. All current feed items are PDFs, so it rarely runs.
+- The manifest copy into `{year}-pdf/`. The old copy there went stale because `copy_pdfs_jsons` never overwrites.
+- The supersede step.
+
+Time quantum:
+- RSS is **pull**: DROMIC cannot notify us, and there is no push or WebSub.
+- We poll **hourly**, as the feed itself declares (`sy:updatePeriod hourly`).
+- An unchanged poll is a conditional GET (ETag / If-Modified-Since → HTTP 304) and stops there. Stages 2–6 run only when a file was downloaded.
+- DROMIC publishes on 6AM/6PM cycles, so new data reaches GraphDB at most about 1 h after posting.
+- `update_runs.csv` records `latency_min`: the load's finish time minus the feed pubDate of the newest new report. This is the latency figure for the thesis.
+
+**Q2. Does the dev repository need the whole catalogue re-parsed?** No.
+- Put the seniors' TTL under `data/rdf/events/dromic-legacy/`. The loader makes each folder its own named graph (`https://sakuna.ph/events/dromic-legacy`) with no code change.
+- The automated chain only ever replaces `events/dromic`, so legacy data is never overwritten.
+- If the seniors used the same `_event_id` scheme, the same event name and start date give the same IRI. One SPARQL query can then list the overlaps, which helps the manual-versus-automated comparison.
+- A full re-parse is optional. RSS `?paged=N` and the Selenium scraper remain available for history.
+
+**Q3. Testing and accuracy.** Two layers.
+- *A. Engineering tests* (pytest, `etl/tests/`, to do):
+  - Wrap `validate/check_event_centroid.py`, `check_psgc_geo.py` (slow) and the matcher smoke tests (fix 8 stale expectations).
+  - Add new tests: RSS parsing on a saved feed, supersede, quarantine, determinism, and a load round-trip on the dev repository.
+- *B. Accuracy versus manual parsing* (design now; the full study is possibly 2nd semester):
+  - Gold standard: a stratified set of about 30–50 reports, hand-annotated (ideally by the Geography partners) with the PSGC code of each row and the key figures.
+  - Metrics, one per stage so errors are attributable:
+    1. location resolution: precision and recall at PSGC-code level, by admin level;
+    2. figures: exact-match rate and median relative error per field;
+    3. centroid error: haversine distance between the pipeline centroid and the centroid recomputed from the gold locations and figures. This isolates parsing and matching errors from the centroid method.
+  - Score the seniors' hand-parsed data against the same gold set where events overlap.
+
+### What was built
+
+**`etl/fetch/dromic_rss.py`** (no new dependency: `requests` plus the stdlib `xml.etree`)
+- **Feed:** `https://dromic.dswd.gov.ph/category/situation-reports/{year}/feed/`, 10 posts per page, newest first.
+  - Each post's `content:encoded` links every report file, **newest first**.
+  - Each file is linked twice (file block plus download button), so links are de-duplicated in order.
+- **Default:** only the newest file per post. `--all-reports` fetches every version.
+- **Paging:** if every post on page 1 is newer than the last poll, it also reads `?paged=2…` (up to `--max-pages`). A burst of more than 10 posts between polls is therefore not missed.
+- **State:**
+  - The shared `manifest.json`, with the same entry shape as the Selenium scraper (`page: 0` means RSS).
+  - A separate `rss_state.json` holding the ETag, Last-Modified, newest pubDate, and per-file title, guid, categories, report number, terminal flag and as-of date.
+  - They are separate because `fetch/dromic.py` builds `ManifestEntry(**entry)` and would crash on extra keys.
+- **Download safety:**
+  - Each file is written to a temp file, then atomically renamed.
+  - A PDF must start with `%PDF` and a DOCX with `PK`.
+  - The manifest is saved after every file.
+  - The ETag only advances when all downloads succeeded, so failures retry.
+- **Title-vs-file guard** (for the Goal 3 mix-up where the Tandag post yielded the Butuan PDF): at least one place word of the post title must appear in the file name. Otherwise it logs a warning and sets `title_check: mismatch` in the state. Tested: the Tandag title against a Butuan file name gives a mismatch.
+- **Live dry run** (22 Nov 2026, 23:02 PHT): 10 posts and 10 new files. Report #1, unnumbered reports and **Terminal Reports** (`DSWD-DROMIC-Terminal-Report-on-…`, no number) were all recognised, and every title check passed.
+- `make_direct_download_link` and `sanitize_filename` are copied from `fetch/dromic.py`, because importing that module pulls in Selenium.
+
+**Supersede rule** (`update_dromic.supersede_old_reports`)
+- **Problem:** event IRIs are minted from event name plus start date (`transform/dromic.py:_event_id`), so Report #111 and Report #112 of Mayon get the **same IRI**. Parsed folders, however, are named with the report date (`Mayon Volcano Seismic Activities 20261117`). If both folders stayed, `run_dromic` would attach old and new figures to one event.
+- **Rule:**
+  - Group folders by (eventName, startDate) from `metadata.json`.
+  - Keep the newest: by folder date suffix, then reportNumber, then mtime.
+  - Move the rest to `parsed/dromic/{year}/_superseded/`. They are kept for provenance and a future time series. `run_dromic` ignores folders starting with `_` because they hold no `metadata.json`.
+- **Test** on a scratch copy with three Mayon folders (…15, …17, …21): it kept …21 and archived the other two. A second run moved nothing.
+
+**Quarantine mode** (`run_dromic.run(..., quarantine=True)`, CLI `--quarantine`)
+- **Problem:** one SHACL failure used to abort the whole year file. In automation, one bad report would then block every later update.
+- **Behaviour now:**
+  - Each event is mapped into its own graph, so a mapping exception drops only that event.
+  - The batch is validated as before. If it fails, its events are validated one by one, and only the failing ones are skipped and appended to `_needs_rerun.txt`, which `run_dromic` already skips.
+  - `run()` now returns a summary dict: processed, skipped, quarantined, triples and out_file.
+  - The default CLI behaviour is unchanged.
+- **Test** on scratch copies: the 3 real events, plus one folder with an invalid `metadata.json` and one copy with a lat/lon-swapped point.
+  - The 2 bad ones were quarantined (a mapping error and a SHACL violation).
+  - The 3 good ones were kept, with the same **359 triples** as the normal run.
+
+**`etl/pipeline/update_dromic.py`** (the wrapper)
+- `--repo` is **required**, with no default, so it can never hit the seniors' repository by accident.
+- It changes into `etl/` itself, so Task Scheduler's working directory doesn't matter.
+- A lock file, `logs/update_dromic.lock` (stale after 6 h), prevents overlapping runs.
+- It never loads after a failed stage 5.
+- **Retry after failure:** if a run fails after fetching (e.g. GraphDB was down), its files are already in the manifest. The **next** run sees the failed row in `update_runs.csv` and retries stages 4–6 even without new files.
+- **Options:** `--dry-run`, `--rebuild` (skip fetch), `--no-load`, `--year`, `--batch-size` (25), `--timeout` (600 s).
+- **Provenance needed no change:** `prov_mapping` already links each event to its report Source with the post URL, download URL and `obtainedDate`. The RSS manifest writes valid ISO timestamps; the Selenium scraper wrote `…+00:00Z`, which is not a valid `xsd:dateTime`.
+
+**`scripts/schedule_dromic.ps1`**
+- Registers the task `SakunaGraPH-DROMIC-Update`, which runs every 60 min as the current user while logged on.
+- Settings: `StartWhenAvailable` (missed runs start on wake), `IgnoreNew` for overlaps, and a 2 h time limit.
+- `-Unregister` removes the task.
+- GraphDB must be running for stage 6. If it isn't, the run is recorded as failed and retried the next hour.
+
+**Known limits (for the paper)**
+- Stage 5 rebuilds the whole year file each time. This is simple and always consistent, but the cost grows with the number of events; per-event TTL files would be the optimisation.
+- The wrapper handles one year per run. Around New Year, also run it with `--year` for the previous year.
+- Event identity depends on the parsed event name being identical across all reports of one event.
+
+
+## 8.17 Test suite, accuracy harness, Geography guide (2026-11-23)
+
+### Test suite (`etl/tests/`, pytest; `pytest` added to `etl/requirements.txt`)
+Run from `etl/`. Heavy tests only run when selected (configured in `tests/conftest.py`, `pytest.ini`):
+
+| Command | What runs | Time | Result (23 Nov) |
+|---|---|---|---|
+| `python -m pytest tests` | fast unit tests (no data files needed except the saved feed) | ~2 s | **65 passed** |
+| `python -m pytest tests -m pipeline` | matcher probes, 14 centroid checks, mapping the 3 samples, determinism, quarantine, harness self-check | ~7 min | **20 passed** |
+| `python -m pytest tests -m slow` | `check_psgc_geo` (7 geodata checks) | >10 min | see below |
+| `python -m pytest tests -m graphdb` | the dev repository: every DROMIC event has a point | seconds | skipped (GraphDB was not running) |
+| `python -m pytest tests -m network` | one live dry-run poll of the feed | seconds | not run |
+
+What the files cover:
+- `test_event_geo_math.py` (19 tests): haversine, spherical mean, the worked example in the paper and the guide, single location, barangay fallback, 3:1 weights, weight-field rule, zero weights, duplicate merge, unresolved, spread, precision order-independence (6 cases), cycle safety, `|`-split.
+- `test_dromic_rss.py` (13 + 1 network): feed parsing on `tests/fixtures/dromic_feed_2026.xml` (live feed saved 22 Nov), de-duplication and newest-first order, report number / terminal / as-of extraction, title guard (Tandag vs Butuan), Google Viewer rewrite. The fetch loop runs against a fake HTTP session: first fetch, conditional 304, a rebuilt feed with known files, `--all-reports`, a failed download retried next poll (ETag not advanced), an HTML body rejected as a PDF, and a dry run that writes nothing.
+- `test_update_dromic.py` (10): supersede (newest kept, idempotent, same name with a different start date kept apart, report-number tie-break, name clash, dry run), lock (overlap and stale takeover), retry-after-failure detection, run-log columns, `--repo` required.
+- `test_evaluation_metrics.py` (23): PSGC code normalisation (Excel-dropped leading zero), barangay → municipality, count parsing, aggregation, recall/precision, exact-match rate and relative error.
+- `test_pipeline_stages.py` (`pipeline`):
+  - 15 location-matcher probes: the 6 NCR "Metro Manila" cases (Bug A), the barangay-below-city cases that the first Bug A fix broke, and the places in the pilot reports;
+  - `check_event_centroid` (14 checks);
+  - the 3 samples mapped and validated, giving the expected **359 triples** and the expected three points;
+  - determinism: two mappings are isomorphic;
+  - quarantine: a broken and a SHACL-violating event are isolated;
+  - the accuracy harness self-check (a reference built from the pipeline scores 100%, and a planted wrong count and wrong municipality are detected);
+  - `slow`: `check_psgc_geo`; `graphdb`: SPARQL on `SakunaGraPH-dev`.
+
+### Two errors the new tests caught (both fixed)
+1. **Superscript digits counted as digits** (`etl/evaluation/metrics.py`). Python's `\d` matches "¹", so a count printed "1,053¹" (footnote mark) would have been read as 10531 in the accuracy comparison. Fixed with `[0-9]`. The pipeline's own `transform/helpers.to_int` already uses `[^0-9.\-]` and is not affected.
+2. **The "well under a metre" claim was wrong** (paper §5.4.2, `event_geo.py` docstring, first draft of the guide). Measured difference between the spherical mean and a plain lat/lon average:
+
+   | Event extent | Difference |
+   |---|---|
+   | 4 neighbouring towns | 0.7–1.2 m |
+   | one region (Western Visayas) | ~16 m |
+   | country-wide | **0.8–1.7 km** |
+
+   Corrected everywhere. The partners' guide now asks for the spherical method (as spreadsheet columns) instead of offering the plain average as a shortcut. New test `test_plain_mean_drifts_for_country_wide_events`.
+
+### Accuracy harness (`etl/evaluation/`)
+- `metrics.py`: pure functions. The comparison unit is the municipality-level PSGC code (barangay rows fold into their municipality, as the centroid does).
+- `compare.py`:
+  - **Inputs:** the annotator's `reports.csv`, `rows.csv` and `centroids.csv`, from `evaluation/reference/<annotator>/`.
+  - **Pipeline side:** recomputed with the same `transform` and `event_geo` code that `run_dromic` uses, from the parsed folder whose `source.json` names the PDF. `_superseded/` is searched too.
+  - **Outputs:** in `evaluation/results/<annotator>/`: `summary.md`, `per_report.csv`, `location_errors.csv` and `figure_errors.csv`.
+  - **Centroid comparison, three distances:**
+    1. pipeline vs the annotator's hand point (total error);
+    2. pipeline vs the pipeline's formula applied to the **reference rows** (upstream error: parsing and matching);
+    3. hand point vs that same formula (the annotator's arithmetic; should be ≈ 0).
+- Command: `python -m evaluation.compare --annotator <initials>`.
+
+### Partners' guide and materials
+- `geog_partners_comparison_guide.md`: step-by-step protocol mirroring the pipeline. It covers:
+  - which table and rows count;
+  - CUM, not NOW;
+  - displaced = inside + outside;
+  - PSGC coding pitfalls ("Metro Manila", "City of X" vs "X City", Ozamis/Ozamiz, NIR, Sulu);
+  - the centroid rules (location source priority, one weight field, merge duplicates, spherical mean with Excel columns and the `ATAN2` argument-order trap, unweighted point, spread by haversine, precision);
+  - a worked example with intermediate sums to self-check the spreadsheet.
+- `evaluation/`:
+  - `pilot_reports.csv`: the 10 reports, stratified;
+  - `pdfs/`: the same 10 PDFs, prefixed R01–R10;
+  - `templates/`: the three CSV templates;
+  - `reference_points.csv`: the 1,756 unit points the pipeline uses;
+  - `reference/` and `results/`, empty for now.
+- **PSGC codes in the guide were checked against the data.** My first draft had wrong NCR codes: Quezon City is `1381300000` and Las Piñas `1380200000`. PSGC also labels Tuguegarao "Tuguegarao City", not "City of …".
+
+**Before sending to the partners:** only 3 of the 10 pilot PDFs are parsed. Parse the other 7 so the comparison has pipeline output:
+`python -m parse.dromic --year 2026 --single <file>`, or let `update_dromic` pick them up.
+Note: `evaluation/` is not covered by `.gitignore`. The PDFs (7.2 MB) would be committed with it unless you add `evaluation/pdfs/` to `.gitignore`.
+
+**Parsing defects already visible in the sample (for the pilot to quantify):**
+- Mayon "cost of assistance": one amount split across two columns (`"996 , 264.00 12"`, `", 336 , 730.59"`, i.e. 12,336,730.59 broken at the line).
+- El Niño affected-population header absorbed digits (`Families .9 ,`).
+
+### Advice: Word (DOCX) reports
+- **How common:** all 19 reports downloaded on 17 Nov 2026, and all 10 in the 22 Nov feed, are PDFs. DOCX and Google Docs links appear mostly in older posts. Measure before investing: the run log now notes unconverted DOCX files, and the manifest records every file's extension.
+- **Current behaviour:** `parse/dromic-docx-to-pdf.py` converts with **Microsoft Word through COM**, so it works only on Windows with Word installed. It also tidies tables first: repeats header rows and sets a minimum row height, which the PDF parser relies on.
+- **Risk:** on the school server (Linux, no Word) every DOCX report would be lost. Before today, a conversion failure also failed the **whole** run.
+- **Fixed today:** a conversion failure is now non-fatal (`update_dromic.stage_files`). The Word reports are skipped, named in the run log's `message`, and counted in `parse_failures`. Every PDF in the run still proceeds.
+- **Recommended next step, when time allows:** replace Word COM with **LibreOffice headless** (`soffice --headless --convert-to pdf`). It is free and runs on Windows and Linux. Keep the header-row pre-processing (it uses python-docx, not Word). Validate on 5 DOCX reports by comparing the parsed tables with the Word-converted ones.
+- Docling could read DOCX directly, but the parser's level detection works on the PDF layout, so this would be a bigger change.
+
+### Advice: the manifest copy
+- **Problem:** the parser reads each report's provenance (post URL, download URL, download time) from `manifest.json` **next to the PDF**, i.e. `raw/dromic-new/{year}-pdf/`. The fetchers write `raw/dromic-new/{year}/manifest.json`. The only copy step (`copy_pdfs_jsons` in the DOCX script) **never overwrites**. After the first run the copy goes stale, and every later report is parsed **without provenance**: empty `reportLink` and `downloadUrl`. Nothing errors.
+- **Fixed today, two ways:**
+  1. `update_dromic` refreshes the copy on every run;
+  2. `parse/dromic.py` `process_file` now reads the **source** manifest (`{year}/manifest.json`) when it exists, and only falls back to the copy. Manual `parse.dromic` runs are therefore covered too.
+- **Possible later check:** a SHACL rule that every DROMIC `Source` has a `downloadUrl`. It would catch any future provenance loss.

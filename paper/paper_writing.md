@@ -8,7 +8,7 @@
 
 5. Data and Methodology
 
-> Draft status (2026-11-21): 5.1–5.4 drafted from notes.md §8.6–8.10. Sections marked
+> Draft status (2026-11-23): 5.1–5.6 drafted from notes.md §8.6–8.16. Sections marked
 > **[TODO]** wait on later steps (DROMIC sample results, automation, frontend). Numbers in
 > this section are from the runs logged in notes.md; re-check them before submission.
 
@@ -177,8 +177,10 @@ and weights wᵢ.
 
    φ̄ = atan2(Z, √(X² + Y²)),  λ̄ = atan2(Y, X)
 
-   This is exact on the sphere and independent of any map projection. At the extent of the
-   Philippines it agrees with a simple average of coordinates to well under a metre.
+   This is exact on the sphere and independent of any map projection. A simple average of
+   latitudes and longitudes differs from it by about 1 m for a handful of neighbouring towns,
+   about 15 m across a region, and up to about 1.7 km for an event spanning the whole country,
+   which is why the spherical form is used.
 4. **Precision.** The event point's precision is the coarsest precision among its inputs.
    An event with even one location known only to the province level is labelled Province.
 5. **Spread.** The spread is the largest great-circle (haversine) distance from the event
@@ -212,28 +214,122 @@ unweighted mean, toward the most affected towns. In a two-town case with a 3:1 r
 (Daraga 3,000, Tabaco 1,000), the point falls exactly one quarter of the way from Daraga to
 Tabaco, as expected for a weighted mean.
 
-**[TODO]** Replace or extend with results from real DROMIC reports (Quezon City fire, Mayon
-Report 111, El Niño Western Visayas) once the sample run is complete.
+5.4.5 Results on real reports
 
-5.5 Automated collection **[TODO, Goal 4]**
+Three DROMIC situation reports of different shapes were processed end to end (Table T4): a
+multi-province drought report, a volcanic report covering 13 municipalities and cities, and an
+urban fire in a single barangay.
 
-Planned content: DROMIC publishes on WordPress; the category RSS feed lists every report file
-per post, which allows per-file (not per-post) change detection, unlike the original
-Selenium scraper that took only the first file per post and never revisited a post. Polling
-interval, idempotent manifest keyed by file URL, incremental parse → map → load chain.
+| Event (report) | Affected locations | Event point (lat, lon) | Method | Precision | Spread | Weighting shift |
+|---|---|---|---|---|---|---|
+| El Niño, Western Visayas (Report 1) | Dumarao, Tapaz (Capiz); Dueñas, Lambunao (Iloilo) | 11.174777, 122.454205 | weighted, affected persons | Municipality | 33.0 km | 8.8 km |
+| Mayon Volcano seismic activity (Report 111) | 13 Albay municipalities and cities | 13.169899, 123.552245 | weighted, affected persons | Municipality | 38.1 km | 7.4 km |
+| Fire, Brgy. E. Rodriguez, Quezon City (Report 4) | Quezon City | 14.680492, 121.060467 | single location | City | 0 km | 0 km |
 
-5.6 Evaluation design **[TODO]**
+All three points are plausible on inspection:
+- **El Niño:** the point lies in central Panay, pulled toward Tapaz, the most affected town
+  (22,795 persons).
+- **Mayon:** the point lies about 17 km south-west of the crater, between the two most affected
+  towns, Guinobatan (102,147 persons) and Ligao (80,926). Every one of the 13 towns was
+  resolved.
+- **Fire:** the point is the Quezon City point. This illustrates the limit of municipality
+  precision for urban events: Quezon City is large, so the marker can be several kilometres
+  from the affected barangay (Section 10).
 
-Planned measures:
-- Join coverage per rule and level (done, Section 5.3.2).
-- Agreement of unit points with COD-AB's published centres (done, Section 5.3.1).
-- Event points for a sample of reports checked by hand against the locations in the report.
-- Weighting shift distribution (weighted vs unweighted) across events.
-- Pipeline freshness once automated: delay between DROMIC publication and graph update.
+The first run of the fire report placed it in the City of Manila, 12.0 km away. The parsed table
+was correct (`NCR | Metro Manila | Quezon City`). However, the location matcher tried the province
+column ("Metro Manila") as a city before looking at the municipality column, and "Metro Manila"
+fuzzy-matched "City of Manila". Every NCR row written this way was affected. The defect was
+visible only because the report title and the table named different places. A consistency check
+between the two is proposed as a quality measure (Section 5.6).
+
+5.5 Automated collection
+
+DROMIC publishes its situation reports as posts on a WordPress site, one post per event. A post
+is a living document: each new report is added to the same post, typically on the 6 AM and 6 PM
+cycles. A long-running event such as Mayon therefore accumulates more than a hundred report
+files in one post. The original collector was a Selenium scraper that downloaded only the first
+file of a post and then recorded the post as done. As a result, an event stayed frozen at the
+report captured on the first visit.
+
+The new collector reads the site's category RSS feed
+(`/category/situation-reports/{year}/feed/`). Each feed item carries:
+- the post title, which includes the incident date and, when the event closes, a "[Terminated]"
+  status;
+- the publication time;
+- the post's categories, which name the disaster type;
+- the full post HTML, from which every linked report file is extracted, newest first.
+
+Change detection is per file: a manifest keyed by the file URL records what has been downloaded,
+so a new report in an old post is detected just like a new post. The feed is polled hourly,
+which is the update period the feed itself declares. Because RSS is pull-based, freshness is
+bounded by the polling interval. A conditional request (ETag / If-Modified-Since) makes a poll
+with no changes cost a single HTTP 304 response.
+
+Each poll that finds new files runs the rest of the pipeline incrementally (Figure F12):
+1. **Fetch** the new report files and record them in the manifest.
+2. **Parse** only the new PDFs into per-event tables.
+3. **Supersede** older reports. Event identifiers are minted from the event name and start
+   date, so all reports of one event map to the same event IRI. Only the newest report of each
+   event is kept active, and older report folders are archived. Figures from different report
+   dates are therefore never mixed in one event.
+4. **Map and validate** all active events of the year into RDF, with SHACL validation. An event
+   that fails mapping or validation is quarantined: it is skipped and listed for manual review,
+   instead of blocking the update of every other event.
+5. **Load** the result by atomically replacing the DROMIC named graph in GraphDB.
+
+Two safeguards address failure modes observed during development:
+- A downloaded file must be a real document; for example, a PDF must begin with `%PDF`.
+- At least one place name in the post title must appear in the file name. This check would have
+  caught a case where the original scraper saved another event's report under a post.
+
+Every run appends one record to a run log with the files fetched, events mapped, events
+quarantined, triples, load status, and the delay between the report's publication and its
+appearance in the graph. This log provides the freshness measurements reported in Section 8.
+
+5.6 Evaluation design
+
+The evaluation separates two questions. *Engineering correctness* asks whether each component
+does what it specifies. *Accuracy* asks whether the automated output agrees with what a careful
+human would extract from the same report.
+
+Engineering correctness is tested with automated checks (Section 7):
+- join coverage per rule and level (Section 5.3.2);
+- agreement of unit points with COD-AB's published centres (Section 5.3.1);
+- unit tests of the centroid calculation on synthetic events with known answers;
+- SHACL validation of every output;
+- determinism: two runs on the same input give identical graphs;
+- the behaviour of the automation steps (change detection, supersede, quarantine).
+
+Accuracy is measured against a hand-built reference ("gold standard") for a sample of reports.
+Partners from the Department of Geography prepare it independently, following a written
+protocol that mirrors the pipeline step by step. For each report the annotators record:
+- the event metadata;
+- every table row, with its location written out and its PSGC code;
+- the key counts;
+- an event centroid computed by hand with the same rules (Section 5.4.2).
+
+Comparing the pipeline with the reference stage by stage makes every error attributable to one
+stage:
+
+| Stage | Measure |
+|---|---|
+| Collection | share of sampled reports fetched, and fetched with the correct file |
+| Event metadata | exact match of event name, disaster type and start date |
+| Table extraction | row recall and precision (rows matched by location) |
+| Location resolution | share of rows resolved to the same PSGC code; errors by administrative level |
+| Figures | exact-match rate and median relative error per count field |
+| Event centroid | (1) great-circle distance between the pipeline point and the reference point; (2) distance between the pipeline point and a point recomputed with the pipeline's own formula from the *reference* rows, which isolates upstream errors from the centroid method |
+
+A pilot uses 10 reports stratified by disaster type and table size; a larger sample is future
+work. Three further descriptive measures are reported:
+- the distribution of the weighting shift across events;
+- a title-versus-table location consistency check;
+- the freshness of the graph (the delay from DROMIC publication to GraphDB).
 
 6. Software and Implementation
 
-> Draft status (2026-11-21): reflects the code in `etl/` as of this date.
+> Draft status (2026-11-23): reflects the code in `etl/` as of this date.
 
 6.1 Architecture
 
@@ -254,6 +350,12 @@ inside the mapping stage (Figure F2).
 | Ontology | `ontology/sakunagraph.ttl` | GeoSPARQL terms; `:geoPrecision`, `:centroidMethod`, `:locationCount`, `:spreadKm` |
 | Constraints | `ontology/shapes/psgc/shapes.ttl`, `ontology/shapes/shapes.ttl` | coordinate range, WKT, precision and event-geometry shapes |
 | Checks | `etl/validate/check_psgc_geo.py`, `etl/validate/check_event_centroid.py` | new regression checks |
+| RSS collector | `etl/fetch/dromic_rss.py` | new: feed parsing, per-file manifest, download checks |
+| Update orchestration | `etl/pipeline/update_dromic.py` | new: fetch → parse → supersede → map → load, run log, lock, retry |
+| Quarantine | `etl/pipeline/run_dromic.py` | changed: failing events skipped instead of aborting the run |
+| Location matcher | `etl/semantic_processing/location_matcher_v2.py` | fixed: NCR rows resolved to the City of Manila |
+| Scheduling | `scripts/schedule_dromic.ps1` | new: hourly Windows Task Scheduler job |
+| Tests and evaluation | `etl/tests/`, `etl/evaluation/` | new: pytest suite; comparison against a hand-built reference |
 
 6.2 Tools and libraries
 
@@ -309,10 +411,11 @@ Two regression scripts complement the shapes:
   region, province, city, municipality and sub-municipality has exactly one point; reference
   towns covering each join rule fall within 10 km of their known locations; and the
   renumbered Maguindanao code is not mis-joined.
-- **`check_event_centroid` (13 checks):** single-location, barangay-fallback,
+- **`check_event_centroid` (14 checks):** single-location, barangay-fallback,
   equal-weight, 3:1-weight, field-fallback, unweighted, duplicate-merge, precision, unresolved
-  and spread cases on synthetic Albay events. The generated RDF conforms to SHACL, a swapped
-  point is rejected, and multi-location event metadata is split correctly.
+  and spread cases on synthetic Albay events, plus independence from input order. The generated
+  RDF conforms to SHACL, a swapped point is rejected, and multi-location event metadata is
+  split correctly.
 
 All checks pass on the current data.
 
@@ -332,20 +435,128 @@ a knowledge graph can introduce:
    produced a single invalid IRI joining all of them. Fixed to emit one location link per place.
 5. **Numeric literal type:** decimal coordinates stored as floating-point values failed SHACL's
    `xsd:decimal` check during in-memory validation. Fixed by emitting exact decimals.
+6. **Metro Manila resolved to the City of Manila:** the location matcher tried the province
+   column as a city before the municipality column. Every NCR row written "X, Metro Manila,
+   NCR" was therefore placed in Manila (Section 5.4.5). The fix tries an exact city match first,
+   then the municipality, then the old fuzzy rule. A first fix that simply tried the
+   municipality first was rejected: an old-versus-new comparison on 34 probe strings showed it
+   broke barangay-below-city rows (e.g. Lahug, Cebu City → City of Naga).
+7. **Every event silently re-queued:** a leftover debug write to a non-existent folder made the
+   assistance table fail for every event. The failure handler then listed the event for
+   re-processing, so the next run skipped all events. The handler also truncated folder names
+   at the first dot ("Brgy. E. Rodriguez" → "Brgy. E").
+8. **Missing validation context:** organisation classes come from a separate graph that had
+   never been built. The validator skipped the missing file without warning, so valid
+   assistance data failed SHACL. Missing context graphs now produce a warning. Three
+   organisations the mappings use (NGA, DROMIC, CRED) were also missing from the registry.
+9. **Non-deterministic output:** two defects made repeated runs give different graphs.
+   - An event mixing cities and municipalities was labelled City on one run and Municipality on
+     the next, because the two levels tie in rank and the first one seen won.
+   - Table rows came out of an unordered join and were numbered in that order, so a row's IRI
+     could change between runs.
 
-6.7 Reproducing the results **[TODO: finalise with the automation step]**
+   Both matter once the pipeline re-runs automatically. They were fixed by a fixed tie order and
+   by sorting rows before numbering; two runs now give isomorphic graphs.
+10. **Events frozen at their first report:** the original scraper recorded progress per post and
+    took only a post's first file, so later reports of an event were never collected
+    (Section 5.5).
+
+6.7 Storage and loading
+
+The knowledge graph is stored in Ontotext GraphDB (Free 11.4) with the OWL 2 RL ruleset:
+- Each source folder is loaded into its own named graph (e.g. `https://sakuna.ph/events/dromic`,
+  `https://sakuna.ph/psgc`).
+- `--replace` swaps a named graph in a single RDF4J transaction, so a failed load leaves the
+  previous version in place.
+- Development uses a separate repository with the same configuration as the production one, so
+  new data never overwrites the existing graph.
+
+The first full load took 5 min 10 s, dominated by inference over the PSGC graph. It covered the
+ontology, organisations, provenance, PSGC with coordinates, and the sample events: 372k explicit
+triples.
+
+SPARQL checks confirmed:
+- the event points;
+- the event → municipality → point chain needed by the map;
+- the inferred classes (events become `geo:Feature`s);
+- that GeoSPARQL functions work without extra configuration: `geof:distance` places the Mayon
+  event point 17 km from the crater.
+
+6.8 Reproducing the results
 
 From `etl/`:
 ```
 python -m pipeline.run_psgc --barangay      # PSGC backbone
 python -m pipeline.run_psgc_geo             # unit coordinates (COD-AB)
+python -m semantic_processing.org_registry  # organisations graph
 python -m validate.check_psgc_geo           # 7 checks
-python -m validate.check_event_centroid     # 13 checks
-python -m parse.dromic --year 2026 [--single FILE]
-python -m pipeline.run_dromic --year 2026 --validate
+python -m validate.check_event_centroid     # 14 checks
+python -m pytest tests                      # test suite (Section 7)
+python -m pipeline.update_dromic --repo SakunaGraPH-dev            # one automated update
+python -m pipeline.load_graphdb --repo SakunaGraPH-dev --replace   # full load
 ```
+Hourly scheduling: `scripts/schedule_dromic.ps1`.
 
 7. Testing
+
+> Draft status (2026-11-23): automated suite complete; the accuracy pilot with the Department of
+> Geography is prepared but not yet run (Section 7.3). Results go to Section 8.
+
+7.1 Test levels
+
+Testing follows the pipeline's stages and is organised in four levels, each selectable
+separately so that the fast level can run on every change:
+
+| Level | Scope | Data needed | Tests | Run time |
+|---|---|---|---|---|
+| Unit | centroid arithmetic, feed parsing, change detection, supersede, run log, accuracy measures | a saved copy of the live feed | 65 | ~2 s |
+| Pipeline | location-matcher probes, centroid checks on real PSGC points, mapping and SHACL validation of real reports, determinism, quarantine, accuracy-harness self-check | PSGC graph, parsed sample reports | 20 | ~7 min |
+| Geodata | full join and coordinate regression (Section 6.5) | PSGC graph, COD-AB boundaries | 1 (7 checks) | >10 min |
+| Deployment | every DROMIC event in the loaded repository has a point; one live poll of the feed | GraphDB, internet | 2 | seconds |
+
+Unit tests use synthetic inputs with known answers. Examples:
+- for a 3:1 weighting the event point must lie one quarter of the way between two towns;
+- the precision label must not depend on input order;
+- a cycle in the administrative hierarchy must not hang the lookup.
+
+The collector is tested without network access against a fake web server that replays the saved
+feed. The tests cover the first poll, an unchanged poll (HTTP 304), a rebuilt feed containing only
+known files, a failed download (which must be retried on the next poll), and a server returning a
+web page instead of a PDF.
+
+The pipeline level contains regression probes for every location-matching defect found during
+development (Section 6.6), including the cases that a first, rejected fix had broken. It also
+checks that the three sample reports produce exactly the expected 359 triples and event points.
+
+7.2 Defects found by the tests
+
+Writing the tests exposed two errors that the earlier checks had not:
+- **Footnote marks read as digits.** The accuracy script read a count printed "1,053¹" as 10,531,
+  because the regular-expression digit class also matches superscript digits. The pipeline's own
+  number parser was not affected.
+- **An overstated claim.** The claim that a plain average of coordinates agrees with the
+  spherical mean to under a metre held only for small events. It is about 16 m for a region and up
+  to 1.7 km for a country-wide event (Section 5.4.2 corrected).
+
+7.3 Accuracy pilot (prepared)
+
+The accuracy evaluation of Section 5.6 is implemented as a comparison script. It reads the
+annotators' sheets and recomputes the pipeline's output for the same reports with the
+production code, so no database is involved. The annotation protocol is written for partners
+without programming background and mirrors each pipeline rule: which table rows count, which
+column (cumulative vs current), how displaced counts are combined, how to code places in PSGC, and
+how to compute the event point. The event point is computed on the sphere in a spreadsheet, with a
+worked example to verify the set-up.
+
+Before use, the comparison script was itself tested. A reference generated from the pipeline's
+own output scores 100% on every measure. A reference with one altered count and one altered
+municipality produces the expected drop in figure accuracy and location recall and precision,
+and lists both errors.
+
+The pilot sample has 10 reports stratified by event type and table size: volcanic, drought
+(regional and national), health, weather, and five fires. The fires include two in Metro Manila,
+a city whose report spelling differs from PSGC, a terminal report, and a city named in the "X City"
+form.
 
 8. Results and Conclusion
 
@@ -359,6 +570,13 @@ Candidate items (from notes so far):
 - Population-weighted unit centroids (PSGC 2024 population is already in the graph).
 - Per-report event snapshots (DROMIC events evolve over many reports).
 - Unit polygons in the graph (not only points), enabling GeoSPARQL containment queries.
+- Larger accuracy study (Section 5.6) beyond the 10-report pilot, with two annotators per report
+  and inter-annotator agreement.
+- Incremental mapping (one RDF file per event) instead of rebuilding the year's file on every
+  update.
+- Title-versus-table location consistency as an automatic validation rule.
+- Word (DOCX) reports converted without Microsoft Word (e.g. LibreOffice headless), so the
+  pipeline can run on a Linux server.
 
 11. Acknowledgments
 

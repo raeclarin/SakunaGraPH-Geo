@@ -52,9 +52,16 @@ CENTROID_REPORT_FIELDS = [
 
 
 def _record_assistance_failure(folder_path: str, needs_rerun_path: str, exc: Exception) -> None:
+    """The event is kept (without its assistance rows); the folder is listed in
+    _assistance_failures.txt for review.
+
+    It used to be appended to _needs_rerun.txt, which run_dromic skips, so the
+    whole event vanished from the graph on the next rebuild. With hourly
+    automated rebuilds an event would appear and then disappear (notes.md §8.18).
+    """
     log.warning("Skipping assistance for %s: %s", folder_path, exc)
 
-    path = Path(needs_rerun_path)
+    path = Path(needs_rerun_path).with_name("_assistance_failures.txt")
     existing = path.read_text(encoding="utf-8").splitlines() if path.exists() else []
     # .name, not .stem: event folders contain dots ("Brgy. E. Rodriguez ..."), and
     # .stem cut them at the first one, so the skip list never matched (notes.md §8.13).

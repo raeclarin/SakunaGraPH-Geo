@@ -913,7 +913,7 @@ Run from `etl/`. Heavy tests only run when selected (configured in `tests/confte
 |---|---|---|---|
 | `python -m pytest tests` | fast unit tests (no data files needed except the saved feed) | ~2 s | **65 passed** |
 | `python -m pytest tests -m pipeline` | matcher probes, 14 centroid checks, mapping the 3 samples, determinism, quarantine, harness self-check | ~7 min | **20 passed** |
-| `python -m pytest tests -m slow` | `check_psgc_geo` (7 geodata checks) | >10 min | see below |
+| `python -m pytest tests -m slow` | `check_psgc_geo` (7 geodata checks) | ~9 min | **1 passed** (all 7 checks) |
 | `python -m pytest tests -m graphdb` | the dev repository: every DROMIC event has a point | seconds | skipped (GraphDB was not running) |
 | `python -m pytest tests -m network` | one live dry-run poll of the feed | seconds | not run |
 
@@ -993,3 +993,83 @@ Note: `evaluation/` is not covered by `.gitignore`. The PDFs (7.2 MB) would be c
   1. `update_dromic` refreshes the copy on every run;
   2. `parse/dromic.py` `process_file` now reads the **source** manifest (`{year}/manifest.json`) when it exists, and only falls back to the copy. Manual `parse.dromic` runs are therefore covered too.
 - **Possible later check:** a SHACL rule that every DROMIC `Source` has a `downloadUrl`. It would catch any future provenance loss.
+
+
+## 8.18 Pilot reports parsed, code review fixes, first 10-event rebuild, TeX draft (2026-11-25)
+
+### Parsing the 7 remaining pilot reports
+- **How:** `update_dromic.stage_files` + `parse_files` (the same code the automation uses), run as a one-off script.
+- **Result:** **7/7 parsed, 0 failures**, 3 min 53 s in total. Per report:
+
+  | Report | Time |
+  |---|---|
+  | El Niño Report 42 | 145 s |
+  | Dengue | 41 s |
+  | Each of the 5 fires and the thunderstorms report | 8–12 s |
+
+- No supersedes. All 10 pilot reports now have parsed folders in `data/parsed/dromic/2026/`.
+
+### Code review: defects found and fixed
+1. **Same-day reports mixed** (`etl/pipeline/update_dromic.py`).
+   - **Problem:** the parser names a folder `<event> <YYYYMMDD>` from the report's last-update **date only**. The 6AM and 6PM reports of one day therefore get the **same folder**. Parsing straight into `parsed/` wrote the 6PM tables next to the 6AM ones (`number_of_affected_population_1.csv`), and `load_aff_pop` read both, mixing the figures. DROMIC's normal rhythm is two reports a day, so this would have hit every active event.
+   - **Fix:** `parse_files` now parses each PDF into `parsed/{year}/_staging/<n>/`. Then `install_parsed_folder()` moves the result into place: if the folder exists, the report with the higher report number stays active and the other goes to `_superseded/`. Staging folder names are short numbers because of the 260-character Windows path limit.
+   - **Tests:** `test_same_day_report_replaces_older_one` and `test_older_same_day_report_goes_straight_to_archive`.
+2. **An assistance-table failure removed the whole event on the next run** (`etl/pipeline/run_dromic.py`, `_record_assistance_failure`).
+   - **Problem:** this inherited code listed the folder in `_needs_rerun.txt`, which `run_dromic` **skips**. With hourly rebuilds an event would appear in one run and vanish in the next.
+   - **Fix:** the event is kept without its assistance rows, and the folder is listed in `_assistance_failures.txt` for review.
+   - **Test:** `test_assistance_failure_does_not_skip_event_next_run`.
+3. **Report numbers were never extracted** (`etl/parse/dromic.py`, `extract_report_metadata`).
+   - **Problem:** the pattern expected "Report No. 111", but DROMIC writes "Report #111", so **all 10 reports had `reportNumber: 0`**. That weakened the same-day tie-break and the pilot's report-number check.
+   - **Fix:** the pattern accepts `No.` or `#`, with the file name (`Report-111-on-…`) as a fallback.
+   - **Checked** on 6 cases: `#111`, `# 42`, `No. 5`, a terminal report, a number only in the file name, and an unnumbered report.
+   - **Backfill:** the 10 existing folders were updated from their file names, so no re-parse was needed: Dengue 10, El Niño 42, El Niño WV 1, QC 4, Ozamiz 2, Las Piñas 1, Mayon 111. Thunderstorms, Alangalang (terminal) and Tuguegarao have no number, correctly.
+4. **Implausible person counts from merged PDF cells** (`etl/transform/dromic.py`, new `_drop_implausible_persons`).
+   - **Problem:** in Dengue Report 10, Camalig's persons cell is `"3,351 3,494"` (its own value plus the next row's). `to_int` strips the separators, giving **33,513,494 affected persons**, a quarter of the country, which would have been loaded into the graph. A second town had 33,233,361. The event happened to be unweighted, so its centroid was unaffected; a weighted event would have been dragged onto that one town.
+   - **Fix:** a persons count greater than 20 × families (households average ~4) is set to null and logged. The event's weighting then falls back to families.
+   - **Dengue:** 4 values nulled, 2 giants and 2 shifted rows (3 families/153 persons, 4/413); the largest remaining value is 6,658.
+   - **Later idea:** a check against the PSGC 2024 municipal population.
+5. **My own GraphDB test query was wrong** (`tests/test_pipeline_stages.py`). `:hasLocation` also sits on table rows, so it counted 43 "events". It now selects events by their (inferred) class `:DisasterEvent`: **3/3 events have a point**. The data was always fine.
+
+Not a defect: "El Ni�o" in console output. The files store `\u00f1` correctly; only the Windows console (cp1252) printed it wrongly.
+
+### First rebuild with all 10 reports (`update_dromic --rebuild`)
+- **Mapping:** 10 events, **SHACL passed (3,271 triples)**, 0 quarantined, **0 unresolved locations**, 3 min in total.
+- **Centroids** (from `logs/dromic_event_centroids.csv`; this run was before fix 4):
+
+  | Event | Point | Precision | Method | Locations | Spread | Shift |
+  |---|---|---|---|---|---|---|
+  | Dengue, Bicol (R10) | 13.330673, 123.529351 | Municipality | unweighted | 106 | 172.8 km | 0 |
+  | El Niño, national (R42) | 14.059385, 122.782418 | Municipality | weighted, persons | 122 | **824.8 km** | **156.4 km** |
+  | El Niño, Western Visayas (R1) | 11.174777, 122.454205 | Municipality | weighted, persons | 4 | 33.0 km | 8.8 km |
+  | Thunderstorms, Western Visayas | 11.093998, 122.375111 | Municipality | weighted, persons | 2 | 30.7 km | 14.2 km |
+  | Fire, Alangalang (terminal) | 11.219894, 124.863057 | Municipality | single | 1 | 0 | 0 |
+  | Fire, Quezon City (R4) | 14.680492, 121.060467 | City | single | 1 | 0 | 0 |
+  | Fire, Ozamiz (R2) | 8.155979, 123.776571 | City | single | 1 | 0 | 0 |
+  | Fire, Las Piñas (R1) | 14.441145, 120.995321 | City | single | 1 | 0 | 0 |
+  | Fire, Tuguegarao | 17.610335, 121.749293 | City | single | 1 | 0 | 0 |
+  | Mayon (R111) | 13.169899, 123.552245 | Municipality | weighted, persons | 13 | 38.1 km | 7.4 km |
+
+  All 5 fires are in the correct city or municipality. This includes the two NCR "Metro Manila" cases and Ozamis/Ozamiz.
+- **Discussion point:** a **single point for a nationwide event is not meaningful**. The national El Niño point (spread 825 km) lands in western Camarines Norte, 7.5 km from San Lorenzo Ruiz, a town with no special relation to a drought affecting 122 municipalities from Cagayan to Mindanao. Weighting moves it 156 km. (Checked against the nearest unit points; my first guess, "in the sea", was wrong.) The spread value flags such events. Recommendation for the Goal 6 map: above a spread threshold (e.g. 100 km), show the affected municipalities' points instead of, or in addition to, the event point.
+- **Data quirk (not a parsing error):** in El Niño Report 42, **86 of 122 rows have persons = families**. **The PDF itself prints the same number twice** (Region II 80,659 / 80,659; Abulug 1,550 / 1,550), checked with pdfplumber. The weighting then effectively uses families for those rows. The pilot should record this as a source issue, not a pipeline error.
+- **Dengue Report 10 has real row shifts:** Daraga parsed as 1,139 / 3,340, while the PDF says 1,294 / 3,494. This is exactly what the pilot will measure.
+
+### The load was refused: GraphDB's free-disk threshold
+- Stage 6 failed with "*The repository 'SakunaGraPH-dev' is critically low on free disk space with 5.0% (23 GB) free left*". GraphDB refuses new transactions at ≤ 5% free space on the volume that holds its data (`C:\Users\Acer\AppData\Roaming\graphdb`; drive C: has 23.6 GB free of ~476 GB; drive D: has 217 GB free).
+- **The safeguards worked as designed:** no transaction was started; `SakunaGraPH-dev` still holds 372,109 explicit statements (unchanged); the run was recorded as `failed` in `logs/update_runs.csv`, so the next run retries automatically.
+- **Your call:** free space on C: until it is clearly above 5% (≥ 30 GB free leaves headroom), or move GraphDB's data directory to D:. Then rerun: `python -m pipeline.update_dromic --repo SakunaGraPH-dev --rebuild`.
+
+### .gitignore
+`evaluation/` (no leading slash) matches **every** folder named `evaluation`, including `etl/evaluation/` with the comparison code. Those files are already tracked, so changes still commit, but any **new** file there would be silently ignored. Suggested: `/evaluation/` (repository root only).
+
+### TeX draft (`paper/template.tex`, `paper/references.bib`)
+- **Filled sections:** Data and Methodology, Implementation and Testing (from `paper_writing.md` §5–7), plus Future Works, Acknowledgments (data attribution) and keywords.
+- **Figures:** F1 and F12 are framed placeholder boxes, so the document compiles before the images exist.
+- **Tables:** sources, join rules, event results, evaluation measures and test levels.
+- **References:** `references.bib` holds 8 entries (GeoSPARQL 1.1, PROV-O, SHACL, COD-AB, PSGC, DROMIC, haversine, GraphDB); `\bibliography{references}` replaces `sample-base`. Upload `references.bib` to Overleaf next to the .tex.
+- **Not compiled here:** no LaTeX is installed on this machine. The text is ASCII-only (`\~n`, `$\rightarrow$`) and uses only packages `acmart` already loads; environments are balanced, and every `\ref`/`\cite` has a target.
+- A backup of the original template is in the session scratchpad.
+- **Left for you:** Abstract, Introduction, Review of Related Literature, Research Objectives and Results (lorem ipsum kept); the author block and CCS concepts.
+
+### Test run after all fixes (25 Nov)
+`python -m pytest tests -m "not slow and not network" --all`: **89 passed** (68 fast + 20 pipeline + 1 GraphDB), 6 min 37 s. The 3-sample checks still give 359 triples and the same three points, so the persons guard does not touch them. The geodata `slow` test passed on 23 Nov (geodata code unchanged since); the `network` test passed earlier today.

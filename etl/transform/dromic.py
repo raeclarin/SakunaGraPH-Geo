@@ -15,8 +15,10 @@ import uuid
 from datetime import datetime
 from dataclasses import fields
 import re
+import logging
 import polars as pl
 
+log = logging.getLogger(__name__)
 
 def _impact_entities(df: pl.DataFrame, cls):
     """Build impact entities that contain data beyond their location."""
@@ -184,6 +186,39 @@ def load_provenance(file_path: str) -> Provenance:
         obtainedDate=src.get("obtainedDate"),
     )
 
+# Philippine households average about 4 people; 20 per family is far beyond any
+# real row. Larger ratios come from merged PDF cells, e.g. Camalig's persons
+# cell "3,351 3,494" (its value + the next row's) read as 33,513,494
+# (Dengue Report 10, notes.md §8.18).
+MAX_PERSONS_PER_FAMILY = 20
+
+
+def _drop_implausible_persons(df: pl.DataFrame, folder_path: str = "") -> pl.DataFrame:
+    """Null a persons count that is implausible against its families count.
+
+    The value is unknown rather than wrong-but-large: nulling it keeps a
+    merged-cell artefact out of the graph and out of centroid weights (the
+    event then falls back to the families field, see event_geo).
+    """
+    for persons, families in (("affectedPersons", "affectedFamilies"), ("displacedPersons", "displacedFamilies")):
+        if persons not in df.columns or families not in df.columns:
+            continue
+        bad = (
+            pl.col(families).is_not_null() & (pl.col(families) > 0)
+            & pl.col(persons).is_not_null()
+            & (pl.col(persons) > MAX_PERSONS_PER_FAMILY * pl.col(families))
+        )
+        flagged = df.filter(bad)
+        if len(flagged):
+            log.warning(
+                "%s: %d implausible %s value(s) set to null (> %d per family): %s",
+                Path(folder_path).name, len(flagged), persons, MAX_PERSONS_PER_FAMILY,
+                flagged.select(["hasLocation", families, persons]).rows()[:5],
+            )
+            df = df.with_columns(pl.when(bad).then(None).otherwise(pl.col(persons)).alias(persons))
+    return df
+
+
 def load_aff_pop(folder_path: str) -> Tuple[List[AffectedPopulation] | None, List[PEvac] | None]:
 
     src_paths: List[str] = []
@@ -254,6 +289,8 @@ def load_aff_pop(folder_path: str) -> Tuple[List[AffectedPopulation] | None, Lis
         if exprs:
             combined = combined.with_columns(exprs).drop(drop_cols)
     
+    combined = _drop_implausible_persons(combined, folder_path)
+
     # Sort before numbering: the full joins above return rows in no guaranteed
     # order, and the row number becomes part of each row's IRI. Unsorted, the
     # same town could get a different IRI on every run (notes.md §8.15).

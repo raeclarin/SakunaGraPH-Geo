@@ -124,8 +124,15 @@ def extract_report_metadata(doc: DoclingDocument, pdf_path: Path, manifest_path:
             event_type = label
             break
 
+    # DROMIC titles say "DSWD DROMIC Report #111 on the ..."; the old pattern only
+    # knew "Report No. 111", so every report got 0 (notes.md §8.18). The file
+    # name ("...-Report-111-on-the-...") is the fallback. Terminal and
+    # unnumbered reports stay 0.
     report_number = 0
-    num_match = re.search(r'(?:Report|Situation Report)\s+No[.\s]+(\d+)', full_text, re.IGNORECASE)
+    num_match = (
+        re.search(r'Report\s*(?:No\.?\s*|#\s*)(\d+)', full_text, re.IGNORECASE)
+        or re.search(r'Report[\s\-]+(\d+)[\s\-]+on[\s\-]', pdf_path.name, re.IGNORECASE)
+    )
     if num_match:
         report_number = int(num_match.group(1))
 

@@ -460,6 +460,16 @@ a knowledge graph can introduce:
 10. **Events frozen at their first report:** the original scraper recorded progress per post and
     took only a post's first file, so later reports of an event were never collected
     (Section 5.5).
+11. **Same-day reports mixed:** the parser names an event's folder after the report's date only.
+    The 6 AM and 6 PM reports of one day therefore got the same folder, and the second report's
+    tables were written beside the first's, mixing their figures. Fixed by parsing each report
+    into a staging folder and keeping the higher-numbered report active.
+12. **Events dropped on the next run:** a failure in the assistance table listed the whole event
+    for re-parsing. The next run skips listed events, so with hourly rebuilds an event appeared
+    and then disappeared. The event is now kept without its assistance rows, and the failure is
+    logged separately.
+13. **Report numbers never extracted:** the parser looked for "Report No. 111", but DROMIC titles
+    read "Report #111", so every report was numbered 0. Fixed, with the file name as a fallback.
 
 6.7 Storage and loading
 
@@ -559,6 +569,44 @@ a city whose report spelling differs from PSGC, a terminal report, and a city na
 form.
 
 8. Results and Conclusion
+
+> Draft status (2026-11-25): preliminary results on the 10 pilot reports (pipeline output only;
+> the Geography reference is pending). Re-run after the pilot and after the GraphDB load.
+
+8.1 Pipeline output on the pilot reports
+
+All 10 pilot reports were parsed, mapped and validated by the automated update in one run.
+SHACL passed (3,271 triples), no event was quarantined, and every affected location resolved to a
+PSGC unit.
+
+| Event (report) | Locations | Event point | Method | Spread | Weighting shift |
+|---|---|---|---|---|---|
+| Dengue outbreak, Bicol (R10) | 106 | 13.330673, 123.529351 | unweighted | 172.8 km | 0 |
+| El Niño, national (R42) | 122 | 14.059385, 122.782418 | weighted, persons | 824.8 km | 156.4 km |
+| El Niño, Western Visayas (R1) | 4 | 11.174777, 122.454205 | weighted, persons | 33.0 km | 8.8 km |
+| Localized thunderstorms, Western Visayas | 2 | 11.093998, 122.375111 | weighted, persons | 30.7 km | 14.2 km |
+| Mayon Volcano (R111) | 13 | 13.169899, 123.552245 | weighted, persons | 38.1 km | 7.4 km |
+| 5 fires (QC, Las Piñas, Ozamiz, Alangalang, Tuguegarao) | 1 each | the city/municipality point | single location | 0 | 0 |
+
+Observations:
+- **Fires:** all five fires were placed in the correct city or municipality. This includes both
+  Metro Manila cases, which an earlier version placed in the City of Manila, and a city whose
+  report spelling differs from PSGC (Ozamis/Ozamiz).
+- **Nationwide events:** a single point for a nationwide event is not meaningful. The national
+  El Niño point lands in western Camarines Norte, a town with no special relation to a drought
+  that affects 122 municipalities from Cagayan to Mindanao. Its spread (825 km) and weighting
+  shift (156 km) flag this. For such events the map should show the affected municipalities
+  rather than (or in addition to) the event point.
+- **Source-data quirk:** in the national El Niño report, 86 of 122 rows give the same number for
+  affected families and affected persons. This is in the report itself, not a parsing error, so
+  the weights for these rows are effectively family counts.
+- **Parsing errors:** the dengue report exposed two kinds.
+  - Shifted rows: one municipality received another row's figures.
+  - Merged cells: one town's persons value was read together with the next row's ("3,351 3,494"
+    → 33,513,494).
+
+  A plausibility rule now rejects person counts above 20 per family; it removed four values in
+  this report. The accuracy pilot will measure how often such errors occur.
 
 9. Recommendations
 

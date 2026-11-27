@@ -106,3 +106,52 @@ def test_repo_is_required():
     from unittest import mock
     with mock.patch.object(sys, "argv", ["update_dromic"]), pytest.raises(SystemExit):
         up.main()
+
+
+# ----------------------------------------------------------------------------
+# Same-day reports (6AM and 6PM share a folder name) - notes.md §8.18
+# ----------------------------------------------------------------------------
+
+def test_same_day_report_replaces_older_one(tmp_path):
+    parsed = tmp_path / "parsed"
+    old = make_event(parsed, "Mayon 20261117", report=111)
+    (old / "number_of_affected_population.csv").write_text("old")
+    new = make_event(tmp_path / "staging", "Mayon 20261117", report=112)
+    (new / "number_of_affected_population.csv").write_text("new")
+
+    installed = up.install_parsed_folder(new, parsed)
+    assert installed == parsed / "Mayon 20261117"
+    assert (installed / "number_of_affected_population.csv").read_text() == "new"
+    assert not (installed / "number_of_affected_population_1.csv").exists()   # no mixing
+    assert (parsed / up.SUPERSEDED / "Mayon 20261117" / "number_of_affected_population.csv").read_text() == "old"
+
+
+def test_older_same_day_report_goes_straight_to_archive(tmp_path):
+    parsed = tmp_path / "parsed"
+    make_event(parsed, "Mayon 20261117", report=112)
+    late = make_event(tmp_path / "staging", "Mayon 20261117", report=111)   # e.g. a backfill
+    up.install_parsed_folder(late, parsed)
+    assert up._report_number(parsed / "Mayon 20261117") == 112
+    assert up._report_number(parsed / up.SUPERSEDED / "Mayon 20261117") == 111
+
+
+def test_assistance_failure_does_not_skip_event_next_run(tmp_path, monkeypatch):
+    import importlib, sys, types
+    # run_dromic imports the heavy transform/matcher modules; stub them for this unit test.
+    for name in ("mappings.dromic", "mappings.graph", "transform.dromic", "validate.validate",
+                 "semantic_processing.event_geo"):
+        monkeypatch.setitem(sys.modules, name, types.SimpleNamespace(
+            **{k: object for k in ("aff_pop_mapping", "assistance_mapping", "event_geometry_mapping",
+                                   "event_mapping", "housing_mapping", "pevac_mapping", "prov_mapping",
+                                   "Graph", "create_graph", "WEIGHT_FIELDS", "compute_event_centroid",
+                                   "get_geo_index", "split_location_iris", "load_aff_pop",
+                                   "load_assistance", "load_event", "load_housing", "load_provenance",
+                                   "ShaclValidationError", "ShaclValidator", "validation_focus_nodes")},
+            DEFAULT_CONTEXT_GRAPH_PATHS=[]))
+    monkeypatch.delitem(sys.modules, "pipeline.run_dromic", raising=False)
+    rd = importlib.import_module("pipeline.run_dromic")
+    rerun = tmp_path / "_needs_rerun.txt"
+    rd._record_assistance_failure(str(tmp_path / "Fire Incident in Brgy. E. Rodriguez 20261115"), str(rerun), ValueError("x"))
+    assert not rerun.exists()
+    assert "Fire Incident in Brgy. E. Rodriguez 20261115" in (tmp_path / "_assistance_failures.txt").read_text(encoding="utf-8")
+    monkeypatch.delitem(sys.modules, "pipeline.run_dromic", raising=False)   # don't leak the stubbed module

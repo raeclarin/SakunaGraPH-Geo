@@ -183,20 +183,70 @@ def _load_parser():
     return module
 
 
+def _report_number(folder: Path) -> int:
+    try:
+        meta = json.loads((folder / "metadata.json").read_text(encoding="utf-8", errors="replace"))
+        return int(meta.get("reportNumber") or 0)
+    except (OSError, ValueError, json.JSONDecodeError):
+        return 0
+
+
+def _archive(folder: Path, parsed_dir: Path) -> Path:
+    archive = parsed_dir / SUPERSEDED
+    archive.mkdir(exist_ok=True)
+    target, n = archive / folder.name, 1
+    while target.exists():
+        target, n = archive / f"{folder.name}_{n}", n + 1
+    shutil.move(str(folder), str(target))
+    return target
+
+
+def install_parsed_folder(new: Path, parsed_dir: Path) -> Path:
+    """Move a freshly parsed event folder into parsed_dir.
+
+    The parser names folders "<event> <YYYYMMDD>" (last-update date only), so
+    the 6AM and 6PM reports of one day get the SAME name. Parsing straight into
+    parsed_dir would write the second report's tables next to the first's
+    (as "..._1.csv") and mix their figures. Instead each report is parsed into
+    a staging folder and swapped in here: the report with the higher report
+    number stays active, the other goes to _superseded/ (notes.md §8.18).
+    """
+    target = parsed_dir / new.name
+    if target.exists():
+        if _report_number(new) >= _report_number(target):
+            log.info("Same-day report replaces %s (report %d -> %d)",
+                     target.name, _report_number(target), _report_number(new))
+            _archive(target, parsed_dir)
+        else:
+            log.info("Older report for %s archived directly", new.name)
+            return _archive(new, parsed_dir)
+    shutil.move(str(new), str(target))
+    return target
+
+
 def parse_files(pdfs: list[Path], parsed_dir: Path) -> tuple[int, int]:
     if not pdfs:
         return 0, 0
     parser = _load_parser()
     parsed_list = parsed_dir / "_parsed.txt"
     parsed_dir.mkdir(parents=True, exist_ok=True)
+    staging_root = parsed_dir / "_staging"
     ok = failed = 0
-    for pdf in pdfs:
+    for i, pdf in enumerate(pdfs):
+        staging = staging_root / str(i)  # short: Windows paths are limited to 260 chars
+        shutil.rmtree(staging, ignore_errors=True)
         try:
-            parser.process_file(pdf, parsed_dir)
+            parser.process_file(pdf, staging)
+            produced = [d for d in staging.iterdir() if d.is_dir()]
+            if len(produced) != 1:
+                raise RuntimeError(f"parser produced {len(produced)} folders")
+            install_parsed_folder(produced[0], parsed_dir)
         except Exception as exc:
             log.error("Parse failed: %s (%r)", pdf.name, exc)
             failed += 1
             continue
+        finally:
+            shutil.rmtree(staging, ignore_errors=True)
         ok += 1
         with parsed_list.open("a", encoding="utf-8") as f:
             f.write(pdf.name + "\n")
@@ -249,7 +299,6 @@ def supersede_old_reports(parsed_year_dir: Path, *, dry_run: bool = False) -> li
             groups[_event_key(d)].append(d)
 
     moved: list[str] = []
-    archive = parsed_year_dir / SUPERSEDED
     for key, folders in groups.items():
         if len(folders) < 2:
             continue
@@ -258,15 +307,8 @@ def supersede_old_reports(parsed_year_dir: Path, *, dry_run: bool = False) -> li
         for d in older:
             log.info("Superseded: %s (kept %s)", d.name, keep.name)
             moved.append(d.name)
-            if dry_run:
-                continue
-            archive.mkdir(exist_ok=True)
-            target = archive / d.name
-            n = 1
-            while target.exists():
-                target = archive / f"{d.name}_{n}"
-                n += 1
-            shutil.move(str(d), str(target))
+            if not dry_run:
+                _archive(d, parsed_year_dir)
     return moved
 
 

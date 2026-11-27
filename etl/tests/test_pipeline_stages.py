@@ -218,8 +218,11 @@ def test_dev_repository_events_have_points():
     query = """
     PREFIX geo: <http://www.opengis.net/ont/geosparql#>
     PREFIX : <https://sakuna.ph/>
-    SELECT (COUNT(DISTINCT ?e) AS ?events) (COUNT(DISTINCT ?g) AS ?withPoint) WHERE {
-      GRAPH <https://sakuna.ph/events/dromic> { ?e :hasLocation ?l . OPTIONAL { ?e geo:hasGeometry ?g } }
+    SELECT (COUNT(DISTINCT ?e) AS ?events) (COUNT(DISTINCT ?missing) AS ?without) WHERE {
+      # events by (inferred) class: :hasLocation alone also matches table rows
+      ?e a :DisasterEvent .
+      GRAPH <https://sakuna.ph/events/dromic> { ?e ?p ?o }
+      OPTIONAL { FILTER NOT EXISTS { ?e geo:hasGeometry ?g } BIND(?e AS ?missing) }
     }"""
     try:
         r = requests.get(f"http://localhost:7200/repositories/{repo}", params={"query": query},
@@ -228,6 +231,6 @@ def test_dev_repository_events_have_points():
         pytest.skip("GraphDB not running on localhost:7200")
     r.raise_for_status()
     b = r.json()["results"]["bindings"][0]
-    events, with_point = int(b["events"]["value"]), int(b["withPoint"]["value"])
+    events, without = int(b["events"]["value"]), int(b["without"]["value"])
     assert events > 0
-    assert with_point == events, f"{events - with_point} event(s) without a point"
+    assert without == 0, f"{without} of {events} event(s) without a point"

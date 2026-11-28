@@ -27,7 +27,7 @@ n. **New Sakuna.PH page with centroid points** (first sample of results). Kept a
 | F6 | Agreement with COD-AB centres | histogram / CDF of distance between our point and COD-AB's published centre (median 1.0 km, p95 5.5 km), outliers labelled | now | coverage CSV `km_to_cod_ab_center` |
 | F7 | Event centroid example | affected municipalities of one real event (e.g. Mayon Report 111) as points sized by affected persons, the weighted and unweighted centroids, and the spread circle | after Goal 3 | `logs/dromic_event_centroids.csv` + DROMIC TTL |
 | F8 | Weighting shift distribution | distance between weighted and unweighted event points across all events | after Goal 4 (needs many events) | centroid report |
-| F9 | Sakuna.PH map page screenshot | new point-based page vs the existing choropleth, same events | after Goal 6 | screenshot |
+| F9 | Sakuna.PH map page screenshot | new point-based page vs the existing choropleth, same events | ready: page + filters work, 58 events loaded (notes §8.19–8.20) | screenshot of `/disasters/coordinate-map` |
 | F10 | Freshness timeline | DROMIC publish time vs time the event appeared in GraphDB, per report | after Goal 4 | automation logs |
 | F11 | Example SPARQL + result | GeoSPARQL query (e.g. events within 50 km of a point) and its output table | after GraphDB load | GraphDB |
 | F12 | Automated update chain | RSS poll → fetch → parse → supersede → map + SHACL (quarantine) → atomic graph replace → run log; show the hourly trigger and the 304 short-circuit | now | drawn |

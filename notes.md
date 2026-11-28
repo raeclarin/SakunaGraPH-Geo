@@ -1073,3 +1073,125 @@ Not a defect: "El Ni�o" in console output. The files store `\u00f1` correctly;
 
 ### Test run after all fixes (25 Nov)
 `python -m pytest tests -m "not slow and not network" --all`: **89 passed** (68 fast + 20 pipeline + 1 GraphDB), 6 min 37 s. The 3-sample checks still give 359 triples and the same three points, so the persons guard does not touch them. The geodata `slow` test passed on 23 Nov (geodata code unchanged since); the `network` test passed earlier today.
+
+
+## 8.19 Goal 6 — Coordinate Map page, proof of concept (2026-11-27)
+
+### Decisions (staggered development)
+- **Basemap: offline boundaries only.** MapLibre GL JS with an empty style, drawing the same region
+  GeoJSON the choropleth page uses (`$lib/map/geoJsonWithPsgc.ts` → `regions_enriched`, from
+  `ph.json`). No tile server, no API key, same look as the old map. Roads and labels are not a goal.
+- **Data: event centroids only.** Affected-town points, the spread circle and a richer basemap
+  come later.
+- **Filters:** the page sits under `/disasters/`, so the shared filter sidebar already appears, but
+  it is **not wired yet** (next step).
+- **Data path:** the existing SvelteKit proxy `src/routes/api/sparql/+server.ts`, like every other
+  page, with `GRAPHDB_REPO_NAME=SakunaGraPH-dev` in `.env`. The FastAPI `api/` is not used.
+
+### What was built (frontend repo `SakunaGeoGraPH-frontend/sakuna.ph`)
+| File | Change |
+|---|---|
+| `src/lib/sparql/queries/maps.ts` | was an empty stub; now `buildCentroidQuery()` and `centroidsToGeoJSON()` |
+| `src/routes/disasters/coordinate-map/+page.svelte` | new page |
+| `src/lib/components/Header/Header.svelte` | "Coordinate Map" link in the desktop and mobile menus |
+| `package.json` | `maplibre-gl` ^6.19.0 (installed by the user) |
+
+The query selects every `:DisasterEvent` with `:latitude`/`:longitude` and, optionally, name,
+start date, type labels (`GROUP_CONCAT`), class (MajorEvent/Incident), and from the geometry node
+`:geoPrecision`, `:centroidMethod`, `:locationCount`, `:spreadKm`. Points become GeoJSON in
+**[lon, lat]** order. Each event is a red circle (`#9b1c1c`); clicking it opens a popup with all of
+the above plus the event IRI (values HTML-escaped). The map credit line carries the COD-AB
+attribution required by CC BY-IGO 3.0 (§8.9).
+
+### Two integration problems (worth one sentence each in the implementation section)
+1. **MapLibre's web worker 404s under Vite.** Vite pre-bundles `maplibre-gl` into
+   `node_modules/.vite/deps/`, but MapLibre v6 locates its worker relative to its own file
+   (`new URL(..., import.meta.url)`), and the worker is not copied there. The map never fires
+   `load` ("Worker failed to load"). Fix: import the worker's real URL with Vite's `?url` suffix
+   and call `maplibregl.setWorkerUrl()` before creating the map.
+2. **The map container collapsed.** `maplibre-gl.css` sets `.maplibregl-map { position: relative }`.
+   Tailwind 4 puts utilities in a CSS layer, so MapLibre's unlayered rule wins over `absolute
+   inset-0`, and the canvas fell back to 300 px. Fix: size the container with `w-full h-full`.
+
+Also: the whole site returns 500 without `PUBLIC_SUPABASE_URL`/`PUBLIC_SUPABASE_PUBLISHABLE_KEY`,
+because `hooks.server.ts` creates a Supabase client on every request (the user added the keys).
+
+### Verification
+- The page's query, run directly against `SakunaGraPH-dev`: 3 rows, the 3 events loaded (QC fire
+  14.680492/121.060467 City; Mayon 13.169899/123.552245 Municipality, 13 locations, 38.1 km;
+  El Niño WV 11.174777/122.454205, 4 locations, 33.0 km).
+- `svelte-check`: no errors in the new or changed files (31 errors elsewhere predate this work).
+- Browser (dev server): "Events shown: 3"; points on Quezon City, Albay and central Panay; the
+  Mayon popup matches GraphDB field for field; `/api/sparql` → 200; no console errors; the old
+  `/disasters/map` page still renders.
+- Only 3 events are in the dev repository; the 10-event rebuild (§8.18) still waits on the
+  GraphDB disk-space refusal. Loading it gives a better F9 screenshot.
+
+### Next
+1. Wire the sidebar filters (`getLocationsClause`, `getDisasterClause`, `getDateClause` from
+   `src/lib/demo_data/filteredData.svelte.ts`; DROMIC data fits them: `@en` type labels, `:psgcCode`).
+2. Load the 10 pilot events, then screenshot for F9.
+3. Later: affected-town points and the spread circle (for events with spread > ~100 km, §8.18).
+
+
+## 8.20 Sidebar filters, first larger end-to-end run (58 events), command reference (2026-11-27)
+
+### Coordinate Map: sidebar filters wired (frontend)
+- `src/lib/sparql/queries/maps.ts`: `buildCentroidQuery({ locations, disasterTypes, dates })` appends the
+  shared clauses from `src/lib/demo_data/filteredData.svelte.ts` (`getLocationsClause`, `getDisasterClause`,
+  `getDateClause`), the same helpers the choropleth uses. `?typeLabel` is bound only when a type filter is
+  active, and the popup's type list uses a separate `?anyType`, so it stays complete under a type filter.
+- `src/routes/disasters/coordinate-map/+page.svelte`: the map is created once; an `$effect` re-queries and
+  calls `setData()` on the centroid source whenever a filter changes (a request counter drops stale
+  responses). The "Events shown" header says "(filtered)" when any filter is active.
+- Verified on the 3-event data (Bicol → Mayon; Bicol + W. Visayas → Mayon + El Niño; Technological →
+  QC fire; date ≥ 1 Oct → El Niño dropped), then on the 58-event data against independent SPARQL counts:
+  unfiltered 58 = 58; Caraga 12 = 12; Caraga + Technological 8 = 8.
+- Inherited caveat (shared helper, not changed): the date picker's local midnight is sent as UTC
+  (1 Oct PHT → `2026-09-30T16:00:00Z`) while event dates carry no timezone, so a boundary-day event can be
+  included/excluded by a few hours.
+
+### Pipeline: `--backfill` option (new)
+`fetch/dromic_rss.py` stops paging at posts it has seen, so a normal poll never reaches older posts.
+`--backfill` (fetcher and `update_dromic`) reads all `--max-pages` pages, skips the conditional GET, and still
+skips files already in the manifest (idempotent). Tests: `test_backfill_reads_past_seen_posts_without_conditional_get`,
+`test_normal_poll_stops_at_seen_posts`. Fast suite: **70 passed**.
+
+### End-to-end runs into `SakunaGraPH-dev` (C: now has 103 GB free, so the §8.18 disk refusal is gone)
+| Run | Command | Result | Time |
+|---|---|---|---|
+| 1 | `update_dromic --repo SakunaGraPH-dev` (normal hourly poll) | 10 new files, 10 parsed, **20 events**, 0 quarantined, 3,817 triples, loaded | 5 min 43 s |
+| 2 | `... --backfill --max-pages 5` | 40 new files, 39 parsed, **1 parse failure**, 1 superseded (El Niño R42 → R45), **58 events**, 0 quarantined, 6,754 triples, loaded | 12 min 18 s |
+| 3 | `... --rebuild` (after re-parsing the failed report) | Mayon R111 superseded by R113; 58 events, 0 quarantined, **0 unresolved locations**, loaded | 4 min 58 s |
+
+58 events: Fire (Misc) 45, Drought 4, Flash Flood 3, and one each of Rockfall (Wet), Storm Surge, Armed
+Conflict, Viral Disease, Infestation, Heat Wave. Precision: Municipality 34, City 23, Province 1. Method:
+single-location 50, weighted 6, unweighted 2. New single-location events spot-checked (Bulalacao, Malate →
+City of Manila, Mandaluyong, Infanta, Kasibu, Kiangan, Alaminos): all in the right place.
+
+### Defects found by the run
+1. **Parse aborted on a non-cp1252 character (fixed).** `parse/dromic.py:886` prints
+   `[DEBUG] Columns: …`; Mayon Report 113 has "●" (U+25CF) in a header. With stdout redirected (log file,
+   Task Scheduler) Python encodes with the Windows code page, the print raised `UnicodeEncodeError`, and the
+   whole report was lost. Fix: `update_dromic.main()` and `parse/dromic.py main()` reconfigure stdout/stderr
+   with `errors="backslashreplace"`. Verified by re-parsing Mayon 113 with redirected output (exit 0; "●"
+   printed as `●`).
+2. **A failed parse is never retried (open).** The file is already in the manifest, so later polls skip it;
+   recovery is manual (`parse.dromic --single`, then `update_dromic --rebuild`). Candidate fix: record parse
+   failures and retry them on the next run, like the failed-load retry.
+3. **Region/province rows read as municipalities (open, parser).** In the RSSI infestation report the "NIR"
+   and "Negros Occidental" header rows (rows 48–49 of `number_of_affected_population.csv`) were classified as
+   municipality rows by the font-based level detector, so the forward-fill kept "REGION VI | Iloilo" for the
+   ~50 Negros Occidental towns below. Most still resolved correctly by name, but **"Isabela" resolved to City of
+   Isabela (Basilan)** instead of Isabela, Negros Occidental (1804514000), and "NIR"/"Negros Occidental"
+   became locations themselves. Effect: the event's spread is 694 km and its precision "Province"; the
+   centroid is pulled south. Mayon R113 shows the same misread in one table (`total_displaced…csv`: "Albay" as
+   a municipality), but its centroid uses the correctly parsed affected table. This is exactly what the
+   accuracy pilot measures; a fix belongs in `parse/dromic.py` level classification (or a transform guard that
+   flags municipality values equal to a region/province name in the row's own hierarchy).
+4. **Same-city events share one point (display).** Two fires each in Mandaluyong and Ozamiz stack on the city
+   centroid. Barangay precision (future work) would separate them.
+
+### Command reference
+`SakunaGraPH-Geo/commands.md`: every command from setup, gathering, stage-by-stage debugging, testing and
+validation, to loading into GraphDB and viewing the page.

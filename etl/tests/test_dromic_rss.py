@@ -124,6 +124,25 @@ def test_all_reports_option_gets_older_files_too(tmp_path, fake):
     assert len(res.new_files) == 15                     # 5 posts carry an older Report 1
 
 
+def test_backfill_reads_past_seen_posts_without_conditional_get(tmp_path, fake):
+    rss.fetch(2026, raw_root=tmp_path)
+    fake.calls.clear()
+    res = rss.fetch(2026, raw_root=tmp_path, backfill=True, max_pages=3)
+    feed_calls = [(u, h) for u, h in fake.calls if "/feed/" in u]
+    assert not res.not_modified                         # no 304 short-circuit
+    assert "If-None-Match" not in feed_calls[0][1]
+    assert any("paged=2" in u for u, _ in feed_calls)   # went past page 1 (fake 404s there)
+    assert res.new_files == []                          # known files still skipped
+
+
+def test_normal_poll_stops_at_seen_posts(tmp_path, fake):
+    rss.fetch(2026, raw_root=tmp_path)
+    fake.etag = '"v2"'
+    fake.calls.clear()
+    rss.fetch(2026, raw_root=tmp_path, max_pages=3)
+    assert not any("paged=" in u for u, _ in fake.calls)
+
+
 def test_failed_download_is_retried_next_poll(tmp_path, fake, feed_xml):
     first = rss.parse_feed(feed_xml)[0].files[0]
     fake.fail_urls = {first}

@@ -368,7 +368,7 @@ def run(args: argparse.Namespace, rec: RunRecord) -> RunRecord:
     new_files: list[Path] = []
     if not args.rebuild:
         log.info("Stage 1/6: fetch (RSS, year %d)", year)
-        res = fetch(year, dry_run=args.dry_run, max_pages=args.max_pages)
+        res = fetch(year, dry_run=args.dry_run, max_pages=args.max_pages, backfill=args.backfill)
         rec.feed_not_modified = res.not_modified
         rec.fetch_failures = len(res.failures)
         if args.dry_run:
@@ -448,10 +448,16 @@ def main() -> int:
                         help="Skip fetching; re-run supersede, map and load on existing parsed data")
     parser.add_argument("--no-load", action="store_true", help="Stop before loading into GraphDB")
     parser.add_argument("--max-pages", type=int, default=5)
+    parser.add_argument("--backfill", action="store_true",
+                        help="Fetch older posts too: read all --max-pages feed pages (see fetch.dromic_rss)")
     parser.add_argument("--batch-size", type=int, default=25)
     parser.add_argument("--timeout", type=int, default=600, help="GraphDB request timeout (s)")
     args = parser.parse_args()
 
+    # Redirected output (log file, Task Scheduler) uses the Windows code page; a stray
+    # character such as U+25CF in a debug print must not abort a report (notes 8.20).
+    for stream in (sys.stdout, sys.stderr):
+        stream.reconfigure(errors="backslashreplace")
     os.chdir(ETL_DIR)  # pipeline modules use ../data relative paths
     if str(ETL_DIR) not in sys.path:
         sys.path.insert(0, str(ETL_DIR))

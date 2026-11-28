@@ -293,12 +293,17 @@ def fetch(
     all_reports: bool = False,
     max_pages: int = 5,
     force: bool = False,
+    backfill: bool = False,
 ) -> FetchResult:
     """Poll the feed and download report files not yet in the manifest.
 
     all_reports=False (default): only the newest file of each post. The
     pipeline keeps one report per event (the latest), so older reports are
     not needed for the knowledge graph.
+
+    backfill=True: read all max_pages pages even past posts already seen (and
+    skip the conditional GET), to collect older posts. Files already in the
+    manifest are still skipped, so a backfill is idempotent.
     """
     out_dir = raw_root / str(year)
     manifest_path = out_dir / "manifest.json"
@@ -312,7 +317,7 @@ def fetch(
     last_seen = datetime.fromisoformat(state.newest_pub_date) if state.newest_pub_date else None
     items: list[FeedItem] = []
     for page in range(1, max_pages + 1):
-        r = fetch_page(session, year, page, None if force or dry_run else state)
+        r = fetch_page(session, year, page, None if force or dry_run or backfill else state)
         if r.status_code == 304:
             log.info("Feed not modified since last poll (HTTP 304)")
             result.not_modified = True
@@ -325,7 +330,9 @@ def fetch(
             etag, last_mod = r.headers.get("ETag"), r.headers.get("Last-Modified")
         items.extend(page_items)
         # Stop paging once this page reaches posts we already saw.
-        if not page_items or last_seen is None or min(i.pub_date for i in page_items) <= last_seen:
+        if not page_items:
+            break
+        if not backfill and (last_seen is None or min(i.pub_date for i in page_items) <= last_seen):
             break
 
     result.items_seen = len(items)
@@ -397,11 +404,13 @@ def main() -> int:
                         help="Download every report file in each post, not only the newest")
     parser.add_argument("--max-pages", type=int, default=5)
     parser.add_argument("--force", action="store_true", help="Ignore ETag/Last-Modified")
+    parser.add_argument("--backfill", action="store_true",
+                        help="Read all --max-pages pages, including posts already seen (older history)")
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
     result = fetch(args.year, dry_run=args.dry_run, all_reports=args.all_reports,
-                   max_pages=args.max_pages, force=args.force)
+                   max_pages=args.max_pages, force=args.force, backfill=args.backfill)
     if args.dry_run:
         for m in result.planned:
             tag = "TERMINAL" if m.terminal else f"#{m.report_number}" if m.report_number else "-"

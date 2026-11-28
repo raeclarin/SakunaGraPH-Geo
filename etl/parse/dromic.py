@@ -1,5 +1,6 @@
 import argparse
 import os
+import sys
 from typing import Any
 from docling.document_converter import DocumentConverter, PdfFormatOption
 from docling.datamodel.pipeline_options import PdfPipelineOptions, TableFormerMode, TableStructureOptions
@@ -1187,6 +1188,10 @@ def load_parsed_files(sub_data_dir: str) -> set[str]:
 
 def main() -> None:
     args = parse_args()
+    # Redirected output (log file, Task Scheduler) uses the Windows code page; a stray
+    # character such as U+25CF in a debug print must not abort a report (notes 8.20).
+    for stream in (sys.stdout, sys.stderr):
+        stream.reconfigure(errors="backslashreplace")
 
     input_dir = Path(f"../data/raw/dromic-new/{args.year}-pdf")
     output_dir =  Path(f"../data/parsed/dromic/{args.year}")
